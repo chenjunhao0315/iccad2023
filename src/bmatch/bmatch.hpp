@@ -1,0 +1,83 @@
+#ifndef __BMATCH_H__
+#define __BMATCH_H__
+
+#include <vector>
+#include <set>
+
+#include "base/abc/abc.h"
+
+#define VERBOSE_MASK        (1 << 0)
+#define VERBOSE_DETAIL_MASK (1 << 1)
+#define RESYNTH_MASK        (1 << 2)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef std::vector<std::pair<int, int> > vSupp;
+typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
+
+#define CONST1 -2
+#define CONST0 -1
+
+struct Literal {
+    int Var;
+
+    Literal() : Var(-4) {}
+    Literal(int Var, bool Sign = false) : Var(Var * 2 + (int)Sign) {}
+    
+    bool     sign()      const { return Var & 1; }
+    int      var()       const { return Var >> 1; }
+    bool     isConst()   const { return Var < 0; }
+    bool     isUndef()   const { return Var == -4; }
+};
+
+typedef std::vector<std::vector<Literal> > vMatch;
+
+class Bmatch_Man_t {
+public:
+    Bmatch_Man_t() {}
+
+public:
+    // pair<PO, suppFunc>
+    vSupp suppFunc1;
+    vSupp suppFunc2;
+};
+
+enum {
+    MITER_FAIL,
+    RESOURCE_LIMIT,
+    PROVE_ERROR,
+    EQUIVALENT,
+    NON_EQUIVALENT
+};
+
+extern Bmatch_Man_t* Bmatch_ManStart();
+extern void Bmatch_ManStop(Bmatch_Man_t* p);
+
+extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
+
+extern void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
+
+// bmatchEc.cpp
+extern int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+
+// bmatchMiter.cpp
+extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+
+// bmatchSetup.cpp
+extern void Bmatch_NtkSetup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
+extern Abc_Ntk_t* Bmatch_NtkResynth(Abc_Ntk_t *pNtk);
+
+// bmatchPrint.cpp
+extern void Bmatch_ObjPrint(Abc_Obj_t *pObj);
+extern void Bmatch_NtkPrint(Abc_Ntk_t *pNtk);
+extern void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
+extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
+extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // __BMATCH_H__
