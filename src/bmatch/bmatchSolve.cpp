@@ -38,8 +38,8 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 }
 
 std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
-    // vMatch MI = {{Literal(1, false), Literal(3, false)}, {Literal(2, true)}, {Literal(0, true)}};
-    // vMatch MO = {{Literal{0, false}}};
+    vMatch MI = {{Literal(1, false), Literal(3, false)}, {Literal(2, true)}, {Literal(0, true)}};
+    vMatch MO = {{Literal{0, false}}};
 
     // vMatch MI = {{Literal(2, false)}, {Literal(3, false)}, {Literal(0, false)}, {Literal(1, false)}, {Literal(4, false)}};
     // vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
@@ -47,8 +47,8 @@ std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_
     // vMatch MI = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}, {Literal(4, false)}};
     // vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
 
-    vMatch MI(Abc_NtkPiNum(pNtk1), std::vector<Literal>());
-    vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
+    // vMatch MI(Abc_NtkPiNum(pNtk1), std::vector<Literal>());
+    // vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
 
     return std::make_tuple(MI, MO);
 }
