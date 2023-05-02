@@ -15,7 +15,7 @@ void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-void Bmatch_PrintOutputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -140,26 +140,34 @@ void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
     #undef PRINT_SENSE
 }
 
-void Bmatch_PrintOutputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     int i;
     Abc_Obj_t *pObj;
     
-    #define PRINT_SENSE(SO, pNtk)                                     \
+    #define PRINT_SENSE(FO, SO, RO, pNtk)                             \
     do {                                                              \
         Abc_NtkForEachPo(pNtk, pObj, i) {                             \
-            Abc_Print(1, "    %s:", Abc_ObjName(pObj));                 \
+            Abc_Print(1, "    %s: functional (", Abc_ObjName(pObj));  \
+            for (auto &p : FO[i]) {                                   \
+                Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPi(pNtk, p))); \
+            }                                                         \
+            Abc_Print(1, " ) structural (");                          \
             for (auto &p : SO[i]) {                                   \
                 Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPi(pNtk, p))); \
             }                                                         \
-            Abc_Print(1, "\n");                                       \
+            Abc_Print(1, " ) redundant (");                           \
+            for (auto &p : RO[i]) {                                   \
+                Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPi(pNtk, p))); \
+            }                                                         \
+            Abc_Print(1, " )\n");                                     \
         }                                                             \
     } while (0)
 
-    Abc_Print(1, "Output Sense(?)\n");
+    Abc_Print(1, "Output Support\n");
     Abc_Print(1, "  Cir1:\n");
-    PRINT_SENSE(pMan->FO1, pNtk1);
+    PRINT_SENSE(pMan->FO1, pMan->SO1, pMan->RO1, pNtk1);
     Abc_Print(1, "  Cir2:\n");
-    PRINT_SENSE(pMan->FO2, pNtk2);
+    PRINT_SENSE(pMan->FO2, pMan->SO2, pMan->RO2, pNtk2);
 
     #undef PRINT_SENSE
 }

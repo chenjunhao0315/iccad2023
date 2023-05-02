@@ -52,13 +52,17 @@ public:
     vBus  BI1, BO1;
     vBus  BI2, BO2;
 
-    // functional sense information
+    // functional support information
     vSense FI1, FO1;
     vSense FI2, FO2;
 
     // structrual support information
     vSense SO1;
     vSense SO2;
+
+    // redundant support information
+    vSense RO1;
+    vSense RO2;
 
     // functional support information
     // pair<PO, suppFunc>
@@ -106,7 +110,7 @@ extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &
 extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-extern void Bmatch_PrintOutputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
