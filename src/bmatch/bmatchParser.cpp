@@ -61,11 +61,11 @@ int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2) {
     Abc_Ntk_t *pNtk1, *pNtk2, *pNtkTemp;
     
     pNtk1 = Io_Read((char*)pMan->cir1.c_str(), Io_ReadFileType((char*)pMan->cir1.c_str()), 1, 0);
-    if (!pNtk1) return -1;
+    if (!pNtk1) return 0;
     pNtk2 = Io_Read((char*)pMan->cir2.c_str(), Io_ReadFileType((char*)pMan->cir2.c_str()), 1, 0);
     if (!pNtk2) {
         Abc_NtkDelete(pNtk1);
-        return -1;
+        return 0;
     }
 
     if (!Abc_NtkIsStrash(pNtk1)) {
@@ -81,6 +81,8 @@ int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2) {
 
     *ppNtk1 = pNtk1;
     *ppNtk2 = pNtk2;
+
+    return 1;
 }
 
 ABC_NAMESPACE_IMPL_END
