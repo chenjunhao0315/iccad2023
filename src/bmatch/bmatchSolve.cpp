@@ -23,6 +23,8 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     int Status;
 
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintOutputSense(pMan, pNtk1, pNtk2);
 
     // testing flow
     auto groups = Bmatch_SolveOutputGroup(pMan);
@@ -43,7 +45,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
 std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     vMatch MI = {{Literal(1, false), Literal(3, false)}, {Literal(2, true)}, {Literal(0, true)}, {}};
-    vMatch MO = {{Literal{0, false}}};
+    vMatch MO = {{Literal(0, false)}};
 
     // vMatch MI = {{Literal(2, false)}, {Literal(3, false)}, {Literal(0, false)}, {Literal(1, false)}, {Literal(4, false)}, {}};
     // vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};

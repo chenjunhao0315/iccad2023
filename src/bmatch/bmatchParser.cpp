@@ -63,7 +63,10 @@ int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2) {
     pNtk1 = Io_Read((char*)pMan->cir1.c_str(), Io_ReadFileType((char*)pMan->cir1.c_str()), 1, 0);
     if (!pNtk1) return -1;
     pNtk2 = Io_Read((char*)pMan->cir2.c_str(), Io_ReadFileType((char*)pMan->cir2.c_str()), 1, 0);
-    if (!pNtk2) return -1;
+    if (!pNtk2) {
+        Abc_NtkDelete(pNtk1);
+        return -1;
+    }
 
     if (!Abc_NtkIsStrash(pNtk1)) {
         pNtkTemp = Abc_NtkStrash(pNtk1, 0, 1, 0);
