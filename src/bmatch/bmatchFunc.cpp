@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <algorithm>
 
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
