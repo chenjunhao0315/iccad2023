@@ -13,7 +13,7 @@ extern "C" {
 // ckt1[1] = {ckt2[?]}
 
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
-int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO);
+int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2);
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI);
 void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter);
 void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MO);
@@ -26,7 +26,7 @@ Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
     char Buffer[1000];
     Abc_Ntk_t *pNtkMiter;
 
-    if (!Bmatch_NtkMiterCheck(MI, MO)) return NULL;
+    if (!Bmatch_NtkMiterCheck(MI, MO, pNtk2)) return NULL;
 
     pNtkMiter = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
     sprintf(Buffer, "%s_%s_miter", Abc_NtkName(pNtk1), Abc_NtkName(pNtk2));
@@ -52,14 +52,14 @@ Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
     return pNtkMiter;
 }
 
-int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO) {
+int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2) {
     int MIs = 0, MOs = 0;
     for (auto &i : MI)
-        if ((MIs = i.size()) != 0) break;
+        MIs += i.size();
     for (auto &o : MO)
         if ((MOs = o.size()) != 0) break;
 
-    return MIs && MOs;
+    return MIs && MOs && MIs == Abc_NtkPiNum(pNtk2);
 }
 
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI) {
@@ -83,7 +83,13 @@ void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkM
             strcat(buffer, Abc_ObjName(pObj));
             if (start++ != MI[i].size() - 1) strcat(buffer, "_");
         }
+        if (strlen(buffer) == 0) sprintf(buffer, "non_map_%d", i);
         Abc_ObjAssignName(pObjNew, buffer, NULL);
+    }
+    // Test for const input (not really sure if it works or not)
+    for (auto &p : MI.back()) {
+        pObj = Abc_NtkCi(pNtk2, p.var());
+        pObj->pCopy = (p.sign()) ? Abc_ObjNot(Abc_AigConst1(pNtkMiter)) : Abc_AigConst1(pNtkMiter);
     }
     pObjNew = Abc_NtkCreatePo(pNtkMiter);
     Abc_ObjAssignName(pObjNew, "miter", Abc_ObjName(pObjNew));

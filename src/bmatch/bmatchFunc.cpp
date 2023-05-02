@@ -9,6 +9,7 @@ ABC_NAMESPACE_IMPL_START
 extern "C" {
 #endif
 
+void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_CalFuncSupp(vSupp &pVec, Abc_Ntk_t *pNtk, int option);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
@@ -17,13 +18,47 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
 #endif
 
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
+    // Setup network (Resythn or something)
     Bmatch_NtkSetup(pNtk1, pNtk2, option);
+
+    // Convert bus information from string to index
+    Bmatch_BusNameMaping(pMan, pNtk1, pNtk2);
 
     // Functional support information
     Bmatch_CalFuncSupp(pMan->suppFunc1, pNtk1, option);
     Bmatch_CalFuncSupp(pMan->suppFunc2, pNtk2, option);
 
     // Sensitivity or others
+}
+
+void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    int i;
+    Abc_Obj_t *pObj;
+
+    #define LINEAR_MAP(IO, sBIO, pNtk, BIO)                          \
+    do {                                                             \
+        for (auto &b : sBIO) {                                       \
+            std::vector<int> bus;                                    \
+            for (auto &p : b) {                                      \
+                Abc_NtkForEach##IO(pNtk, pObj, i) {                  \
+                    if (strcmp(p.c_str(), Abc_ObjName(pObj)) == 0) { \
+                        bus.push_back(i);                            \
+                    }                                                \
+                }                                                    \
+            }                                                        \
+            if (!bus.empty()) BIO.emplace_back(std::move(bus));      \
+        }                                                            \
+    } while (0)
+
+    LINEAR_MAP(Pi, pMan->sBIO1, pNtk1, pMan->BI1);
+    LINEAR_MAP(Po, pMan->sBIO1, pNtk1, pMan->BO1);
+    LINEAR_MAP(Pi, pMan->sBIO2, pNtk2, pMan->BI2);
+    LINEAR_MAP(Po, pMan->sBIO2, pNtk2, pMan->BO2);
+
+    #undef LINEAR_MAP
+
+    pMan->sBIO1.clear();
+    pMan->sBIO2.clear();
 }
 
 void Bmatch_CalFuncSupp(vSupp &pVec, Abc_Ntk_t *pNtk, int option) {

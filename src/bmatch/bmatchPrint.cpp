@@ -1,5 +1,7 @@
 #include "bmatch.hpp"
 
+#include "print.hpp"
+
 ABC_NAMESPACE_IMPL_START
 
 #ifdef __cplusplus
@@ -11,6 +13,7 @@ void Bmatch_NtkPrint(Abc_Ntk_t *pNtk);
 void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
+void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -43,7 +46,7 @@ void Bmatch_ObjPrint(Abc_Obj_t *pObj) {
 }
 
 void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group) {
-    Abc_Print(1, "Output Grouping:\n");
+    Abc_Print(1, "Guess Output Grouping:\n");
     for (auto &g : group) {
         Abc_Print(1, "  ([");
         for (int i = 0; i < g.first.size(); ++i) {
@@ -66,7 +69,8 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
     Abc_Print(1, "  MI:");
     for (int i = 0; i < MI.size(); ++i) {
         for (auto &p : MI[i]) {
-            Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPi(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
+            if (i != MI.size() - 1) Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPi(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
+            else Abc_Print(1, " (%s, %s)", p.sign() ? "CONST0" : "CONST1", Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
         }
     }
     Abc_Print(1, "\n  MO:");
@@ -77,6 +81,37 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
         }
     }
     Abc_Print(1, "\n  Score: %d\n", score);
+}
+
+void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    #define BUS_PRINT(TYPENAME, TYPE, BIO, pNtk)                                    \
+    do {                                                                            \
+        Abc_Print(1, "  ");                                                         \
+        Abc_Print(1, #TYPENAME);                                                    \
+        Abc_Print(1, " bus:");                                                      \
+        for (int i = 0; i < BIO.size(); ++i) {                                      \
+            Abc_Print(1, " (");                                                     \
+            for (int j = 0; j < BIO[i].size(); ++j) {                               \
+                Abc_Print(1, "%s", Abc_ObjName(Abc_Ntk##TYPE(pNtk, BIO[i][j])));    \
+                if (j != BIO[i].size() - 1) Abc_Print(1, ", ");                     \
+            }                                                                       \
+            Abc_Print(1, ")");                                                      \
+        }                                                                           \
+        Abc_Print(1, "\n");                                                         \
+    } while (0)
+
+    if (pMan->BI1.empty() && pMan->BI2.empty() && pMan->BO1.empty() && pMan->BO2.empty())
+        Abc_Print(1, "No Bus Information!\n");
+    if (!pMan->BI1.empty() || !pMan->BO1.empty())
+        Abc_Print(1, "Cir1:\n");
+    if (!pMan->BI1.empty()) BUS_PRINT(input , Pi, pMan->BI1, pNtk1);
+    if (!pMan->BO1.empty()) BUS_PRINT(output, Po, pMan->BO1, pNtk1);
+    if (!pMan->BI2.empty() || !pMan->BO2.empty())
+        Abc_Print(1, "Cir2:\n");
+    if (!pMan->BI2.empty()) BUS_PRINT(input , Pi, pMan->BI2, pNtk2);
+    if (!pMan->BO2.empty()) BUS_PRINT(output, Po, pMan->BO2, pNtk2);
+
+    #undef BUS_PRINT
 }
 
 ABC_NAMESPACE_IMPL_END
