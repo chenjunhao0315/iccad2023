@@ -6,6 +6,7 @@ LD   := $(CXX)
 
 MSG_PREFIX ?=
 ABCSRC = .
+ABC_USE_NO_PTHREADS = 1
 
 $(info $(MSG_PREFIX)Using CC=$(CC))
 $(info $(MSG_PREFIX)Using CXX=$(CXX))

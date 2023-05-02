@@ -24,7 +24,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputSense(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
 
     // testing flow
     auto groups = Bmatch_SolveOutputGroup(pMan);
