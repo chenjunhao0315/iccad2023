@@ -19,6 +19,7 @@ typedef std::vector<std::pair<int, int> > vSupp;
 typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
+typedef std::vector<std::set<int> > vSense;
 
 struct Literal {
     int Var;
@@ -45,13 +46,21 @@ public:
     std::string cir1;
     std::string cir2;
 
+    // bus information
     vsBus sBIO1;
     vsBus sBIO2;
-    vBus  BI1;
-    vBus  BO1;
-    vBus  BI2;
-    vBus  BO2;
+    vBus  BI1, BO1;
+    vBus  BI2, BO2;
 
+    // functional sense information
+    vSense FI1, FO1;
+    vSense FI2, FO2;
+
+    // structrual support information
+    vSense SO1;
+    vSense SO2;
+
+    // functional support information
     // pair<PO, suppFunc>
     vSupp suppFunc1;
     vSupp suppFunc2;
@@ -96,6 +105,8 @@ extern void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintOutputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
