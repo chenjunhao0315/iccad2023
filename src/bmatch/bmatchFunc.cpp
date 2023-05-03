@@ -3,6 +3,8 @@
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
 
+#include "print.hpp"
+
 ABC_NAMESPACE_IMPL_START
 
 #define AIG_OBJ_NAME2INDEX(TYPE, pObj)
@@ -17,10 +19,10 @@ LINEAR_SEARCH_FUNC(Po)
 #undef LINEAR_SEARCH_FUNC
 
 void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-void Bmatch_CalSupp(Abc_Ntk_t *pNtk, vSupp &vSupp, vSense &iFuncSupp, vSense &oFuncSupp, vSense &oStrSupp, vSense &oRedundSupp, int option);
-void Bmatch_CalStructSupp(vSense &oStrSupp, Abc_Ntk_t *pNtk);
-void Bmatch_CalFuncSupp(vSupp &pVec, vSense &iSen, vSense &oFuncSupp, Abc_Ntk_t *pNtk, int option);
-void Bmatch_CalRedundSupp(vSense &rSupp, vSense &oStrSupp, vSense &oFuncSupp);
+void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm);
+void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
+void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
+void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 #ifdef __cplusplus
@@ -34,20 +36,20 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     // Convert bus information from string to index
     Bmatch_BusNameMaping(pMan, pNtk1, pNtk2);
 
-    // Bmatch_CalSupp(pNtk1, pMan->suppFunc1, pMan->FI1, pMan->FO1, pMan->SO1, pMan->RO1, option);
-    // Bmatch_CalSupp(pNtk2, pMan->suppFunc2, pMan->FI2, pMan->FO2, pMan->SO2, pMan->RO2, option);
+    // Functional support and Symmetry information
+    Bmatch_CalSuppAndSymm(pNtk1, pMan->iFuncSupp1, pMan->oFuncSupp1, pMan->vSymm1);
+    Bmatch_CalSuppAndSymm(pNtk2, pMan->iFuncSupp2, pMan->oFuncSupp2, pMan->vSymm2);
 
     // Structural support information
-    Bmatch_CalStructSupp(pMan->SO1, pNtk1);
-    Bmatch_CalStructSupp(pMan->SO2, pNtk2);
-
-    // Functional support information
-    Bmatch_CalFuncSupp(pMan->suppFunc1, pMan->FI1, pMan->FO1, pNtk1, option);
-    Bmatch_CalFuncSupp(pMan->suppFunc2, pMan->FI2, pMan->FO2, pNtk2, option);
+    Bmatch_CalStructSupp(pMan->oStrSupp1, pNtk1);
+    Bmatch_CalStructSupp(pMan->oStrSupp2, pNtk2);
 
     // Redundant support information
-    Bmatch_CalRedundSupp(pMan->RO1, pMan->SO1, pMan->FO1);
-    Bmatch_CalRedundSupp(pMan->RO2, pMan->SO2, pMan->FO2);
+    Bmatch_CalRedundSupp(pMan->oRedundSupp1, pMan->oStrSupp1, pMan->oFuncSupp1);
+    Bmatch_CalRedundSupp(pMan->oRedundSupp2, pMan->oStrSupp2, pMan->oFuncSupp2);
+
+    Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
+    Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
 
     // Sensitivity or others
 }
@@ -82,43 +84,105 @@ void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     pMan->sBIO2.clear();
 }
 
-void Bmatch_CalFuncSupp(vSupp &pVec, vSense &iSen, vSense &oFuncSupp, Abc_Ntk_t *pNtk, int option) {
-    int i, j, k;
-    int suppFunc;
-    Vec_Ptr_t *vResult;
+void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm) {
+    Sym_Man_t *pSymMan;
 
-    pVec.reserve(Abc_NtkPoNum(pNtk));
-    iSen.resize(Abc_NtkPiNum(pNtk));
-    oFuncSupp.reserve(Abc_NtkPoNum(pNtk));
-    vResult = Sim_ComputeFunSupp(pNtk, (option & VERBOSE_DETAIL_MASK) != 0);
-    for (i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
-        std::set<int> sen;
-        suppFunc = 0;
-        for (j = 0, k = (Abc_NtkPiNum(pNtk) / 32) + (Abc_NtkPiNum(pNtk) % 32 != 0); j < k; ++j) {
-            suppFunc += __builtin_popcount(((int*)vResult->pArray[i])[j]);
+    srand(0xABC);
 
-            if (option & VERBOSE_MASK) Abc_Print(1, "%s(%d): ", Abc_ObjName(Abc_NtkPo(pNtk, i)), i);
-            unsigned n = ((unsigned*)vResult->pArray[i])[j];
-            for(int l = 0, num = (j == (Abc_NtkPiNum(pNtk) / 32)) ? ((Abc_NtkPiNum(pNtk) % 32 == 0) ? 32 : (Abc_NtkPiNum(pNtk) % 32)) : 32; l < num; ++l) {
-                if (n & 1) {
-                    if (option & VERBOSE_MASK) Abc_Print(1, "%s, ", Abc_ObjName(Abc_NtkPi(pNtk, j * 32 + l)));
-                    iSen[j * 32 + l].insert(i);
-                    sen.insert(j * 32 + l);
-                }
-                n >>= 1;
-            }
-        }
-        if (option & VERBOSE_MASK) Abc_Print(1, "suppFunc = %d\n", suppFunc);
-        pVec.emplace_back(i, suppFunc);
-        oFuncSupp.emplace_back(std::move(sen));
+    pSymMan = Sym_ManStart(pNtk, 0);
+    pSymMan->nPairsTotal = pSymMan->nPairsRem = Sim_UtilCountAllPairs(pSymMan->vSuppFun, pSymMan->nSimWords, pSymMan->vPairsTotal);
+
+    // detect symmetries using circuit structure
+    Sim_SymmsStructCompute(pNtk, pSymMan->vMatrSymms, pSymMan->vSuppFun);
+    Sim_UtilCountPairsAll(pSymMan);
+    pSymMan->nPairsSymmStr = pSymMan->nPairsSymm;
+
+    // detect symmetries using simulation
+    for (int i = 1; i <= 1000; i++) {
+        // simulate this pattern
+        Sim_UtilSetRandom(pSymMan->uPatRand, pSymMan->nSimWords);
+        Sim_SymmsSimulate(pSymMan, pSymMan->uPatRand, pSymMan->vMatrNonSymms);
+        if (i % 50 != 0)
+            continue;
+        // check disjointness
+        assert(Sim_UtilMatrsAreDisjoint(pSymMan));
+        // count the number of pairs
+        Sim_UtilCountPairsAll(pSymMan);
     }
 
-    std::sort(pVec.begin(), pVec.end(), [](std::pair<int, int> &t1, std::pair<int, int> &t2) { return t1.second < t2.second; });
+    // detect symmetries using SAT
+    for (int i = 1; Sim_SymmsGetPatternUsingSat(pSymMan, pSymMan->uPatRand); i++) {
+        // simulate this pattern in four polarities
+        Sim_SymmsSimulate(pSymMan, pSymMan->uPatRand, pSymMan->vMatrNonSymms);
+        Sim_XorBit(pSymMan->uPatRand, pSymMan->iVar1);
+        Sim_SymmsSimulate(pSymMan, pSymMan->uPatRand, pSymMan->vMatrNonSymms);
+        Sim_XorBit(pSymMan->uPatRand, pSymMan->iVar2);
+        Sim_SymmsSimulate(pSymMan, pSymMan->uPatRand, pSymMan->vMatrNonSymms);
+        Sim_XorBit(pSymMan->uPatRand, pSymMan->iVar1);
+        Sim_SymmsSimulate(pSymMan, pSymMan->uPatRand, pSymMan->vMatrNonSymms);
+        Sim_XorBit(pSymMan->uPatRand, pSymMan->iVar2);
 
-    Vec_PtrFree(vResult);
+        if ( i % 10 != 0 )
+            continue;
+        // check disjointness
+        assert(Sim_UtilMatrsAreDisjoint(pSymMan));
+        // count the number of pairs
+        Sim_UtilCountPairsAll(pSymMan);
+    }
+
+    // count the number of pairs
+    Sim_UtilCountPairsAll(pSymMan);
+
+    auto insert_symm = [](std::vector<std::set<int> > &symm_groups, int i, int j) -> void {
+        for (auto &g : symm_groups) {
+            if (g.count(i)) { g.insert(j); return; }
+            else if (g.count(j)) { g.insert(i); return; }
+        }
+        symm_groups.emplace_back(std::set<int>{i, j});
+    };
+
+    iFuncSupp.resize(Abc_NtkPiNum(pNtk));
+    for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
+        int j, k, Index1, Index2;
+        Extra_BitMat_t *pMat = (Extra_BitMat_t *)Vec_PtrEntry(pSymMan->vMatrSymms, i);
+        Vec_Int_t *vSupport = Vec_VecEntryInt(pSymMan->vSupports, i);
+        std::vector<std::set<int> > symm_groups;
+        std::set<int> ofuncSupp;
+
+        // symmetry
+        Vec_IntForEachEntry(vSupport, j, Index1) {
+            Vec_IntForEachEntryStart(vSupport, k, Index2, Index1 + 1) {
+                if (Extra_BitMatrixLookup1(pMat, j, k)) {
+                    insert_symm(symm_groups, j, k);
+                }
+            }
+        }
+        vSymm.emplace_back(std::move(symm_groups));
+
+        // functional support
+        for (j = 0; j < Abc_NtkPiNum(pNtk); ++j) {
+            if (Sim_SuppFunHasVar(pSymMan->vSuppFun, i, j)) {
+                ofuncSupp.insert(j);
+                iFuncSupp[j].insert(i);
+            }
+        }
+        oFuncSupp.emplace_back(std::move(ofuncSupp));
+    }
+
+    Sym_ManStop(pSymMan);
 }
 
-void Bmatch_CalStructSupp(vSense &oStrSupp, Abc_Ntk_t *pNtk) {
+void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp) {
+    assert(oFuncSupp.size() == oStrSupp.size());
+
+    for (int i = 0; i < oFuncSupp.size(); ++i) {
+        vSuppInfo.emplace_back(std::make_tuple(i, oFuncSupp[i].size(), oStrSupp[i].size()));
+    }
+
+    std::sort(vSuppInfo.begin(), vSuppInfo.end(), [](std::tuple<int, int, int> const &t1, std::tuple<int, int, int> const &t2) { return std::get<SUPPFUNC>(t1) < std::get<SUPPFUNC>(t2); });
+}
+
+void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk) {
     Vec_Ptr_t *vSupp, *vNodes;
     Abc_Obj_t *pObj, *pObjTemp;
     int i, j, index;
@@ -139,7 +203,7 @@ void Bmatch_CalStructSupp(vSense &oStrSupp, Abc_Ntk_t *pNtk) {
     Abc_NtkCleanMarkA(pNtk);
 }
 
-void Bmatch_CalRedundSupp(vSense &rSupp, vSense &oStrSupp, vSense &oFuncSupp) {
+void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp) {
     // StrSupp - FuncSupp
     assert(oStrSupp.size() == oFuncSupp.size());
     rSupp.resize(oStrSupp.size());
@@ -149,60 +213,6 @@ void Bmatch_CalRedundSupp(vSense &rSupp, vSense &oStrSupp, vSense &oFuncSupp) {
             if (oFuncSupp[i].count(p) == 0) rSupp[i].insert(p);
         }
     }
-}
-
-void Bmatch_CalSupp(Abc_Ntk_t *pNtk, vSupp &vSupp, vSense &iFuncSupp, vSense &oFuncSupp, vSense &oStrSupp, vSense &oRedundSupp, int option) {
-    int i, j, k;
-    int suppFunc;
-    Vec_Ptr_t *vResultFun, *vResultStr;
-
-    iFuncSupp.resize(Abc_NtkPiNum(pNtk));
-    oFuncSupp.reserve(Abc_NtkPoNum(pNtk));
-    oStrSupp.resize(Abc_NtkPoNum(pNtk));
-    oRedundSupp.resize(Abc_NtkPoNum(pNtk));
-
-    vResultFun = Sim_ComputeFunSupp(pNtk, (option & VERBOSE_DETAIL_MASK) != 0);
-    vResultStr = Sim_ComputeStrSupp(pNtk);
-    for (i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
-        std::set<int> oFunc;
-        suppFunc = 0;
-        for (j = 0, k = (Abc_NtkPiNum(pNtk) / 32) + (Abc_NtkPiNum(pNtk) % 32 != 0); j < k; ++j) {
-            suppFunc += __builtin_popcount(((int*)vResultFun->pArray[i])[j]);
-
-            if (option & VERBOSE_MASK) Abc_Print(1, "%s(%d): ", Abc_ObjName(Abc_NtkPo(pNtk, i)), i);
-            unsigned f = ((unsigned*)vResultFun->pArray[i])[j];
-            unsigned s = ((unsigned*)vResultStr->pArray[i])[j];
-            printf("hahahah:::  %u", s);
-            unsigned r = s & ~f;
-            for(int l = 0, num = (j == (Abc_NtkPiNum(pNtk) / 32)) ? ((Abc_NtkPiNum(pNtk) % 32 == 0) ? 32 : (Abc_NtkPiNum(pNtk) % 32)) : 32; l < num; ++l) {
-                if (f & 1) {
-                    if (option & VERBOSE_MASK) Abc_Print(1, "%s", Abc_ObjName(Abc_NtkPi(pNtk, j * 32 + l)));
-                    iFuncSupp[j * 32 + l].insert(i);
-                    oFunc.insert(j * 32 + l);
-                }
-                if (s & 1) {
-                    oStrSupp[i].insert(j * 32 + l);
-                }
-                if (r & 1) {
-                    if (option & VERBOSE_MASK) Abc_Print(1, "(X), ");
-                    oRedundSupp[i].insert(j * 32 + l);
-                } else {
-                    if (option & VERBOSE_MASK) Abc_Print(1, "(V), ");
-                }
-                f >>= 1;
-                s >>= 1;
-                r >>= 1;
-            }
-        }
-        if (option & VERBOSE_MASK) Abc_Print(1, "suppFunc = %d\n", suppFunc);
-        vSupp.emplace_back(i, suppFunc);
-        oFuncSupp.emplace_back(std::move(oFunc));
-    }
-    
-    std::sort(vSupp.begin(), vSupp.end(), [](std::pair<int, int> &t1, std::pair<int, int> &t2) { return t1.second < t2.second; });
-
-    Vec_PtrFree(vResultFun);
-    Vec_PtrFree(vResultStr);
 }
 
 #define LINEAR_SEARCH_FUNC_IMPL(TYPE)                                         \

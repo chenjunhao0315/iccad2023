@@ -25,6 +25,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
 
     // testing flow
     auto groups = Bmatch_SolveOutputGroup(pMan);
@@ -61,8 +62,8 @@ std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_
 
 vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
     vGroup groups;
-    auto &supp1 = pMan->suppFunc1;
-    auto &supp2 = pMan->suppFunc2;
+    auto &supp1 = pMan->vSuppInfo1;
+    auto &supp2 = pMan->vSuppInfo2;
     int suppFunc1 = 0, suppFunc2 = 0;
     int n1 = supp1.size() - 1;
     int n2 = supp2.size() - 1;
@@ -70,11 +71,11 @@ vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
     groups.emplace_back(std::vector<int>(), std::vector<int>());
     for (int i = n1, j = n2; i >= 0 || j >= 0; --i, --j) {
         auto &group = groups.back();
-        if (i >= 0) group.first.emplace_back(supp1[i].first);
-        if (j >= 0) group.second.emplace_back(supp2[j].first);
+        if (i >= 0) group.first.emplace_back(std::get<PO>(supp1[i]));
+        if (j >= 0) group.second.emplace_back(std::get<PO>(supp2[j]));
 
-        suppFunc1 = std::max(suppFunc1, supp1[i].second);
-        suppFunc2 = (j - 1 >= 0) ? supp2[j - 1].second : supp2[0].second;
+        suppFunc1 = std::max(suppFunc1, std::get<SUPPFUNC>(supp1[i]));
+        suppFunc2 = (j - 1 >= 0) ? std::get<SUPPFUNC>(supp2[j - 1]) : std::get<SUPPFUNC>(supp2[0]);
 
         if (suppFunc1 > suppFunc2 && (i > 0 || j > 0)) {
             suppFunc1 = 0;

@@ -16,6 +16,7 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
 void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -131,11 +132,11 @@ void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
         }                                                             \
     } while (0)
 
-    Abc_Print(1, "Input Sense(?)\n");
+    Abc_Print(1, "Input Support\n");
     Abc_Print(1, "  Cir1:\n");
-    PRINT_SENSE(pMan->FI1, pNtk1);
+    PRINT_SENSE(pMan->iFuncSupp1, pNtk1);
     Abc_Print(1, "  Cir2:\n");
-    PRINT_SENSE(pMan->FI2, pNtk2);
+    PRINT_SENSE(pMan->iFuncSupp2, pNtk2);
 
     #undef PRINT_SENSE
 }
@@ -165,11 +166,36 @@ void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 
     Abc_Print(1, "Output Support\n");
     Abc_Print(1, "  Cir1:\n");
-    PRINT_SENSE(pMan->FO1, pMan->SO1, pMan->RO1, pNtk1);
+    PRINT_SENSE(pMan->oFuncSupp1, pMan->oStrSupp1, pMan->oRedundSupp1, pNtk1);
     Abc_Print(1, "  Cir2:\n");
-    PRINT_SENSE(pMan->FO2, pMan->SO2, pMan->RO2, pNtk2);
+    PRINT_SENSE(pMan->oFuncSupp2, pMan->oStrSupp2, pMan->oRedundSupp2, pNtk2);
 
     #undef PRINT_SENSE
+}
+
+void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    #define PRINT_SYMM(vSymm, pNtk)                                       \
+    do {                                                                  \
+        for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {                    \
+            Abc_Print(1, "    %s:", Abc_ObjName(Abc_NtkPo(pNtk, i)));     \
+            for (auto &g : vSymm[i]) {                                    \
+                Abc_Print(1, " (");                                       \
+                for (auto &p : g) {                                       \
+                    Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPi(pNtk, p))); \
+                }                                                         \
+                Abc_Print(1, " )");                                       \
+            }                                                             \
+            Abc_Print(1, "\n");                                           \
+        }                                                                 \
+    } while (0)
+
+    Abc_Print(1, "Symmetry information\n");
+    Abc_Print(1, "  Cir1:\n");
+    PRINT_SYMM(pMan->vSymm1, pNtk1);
+    Abc_Print(1, "  Cir2:\n");
+    PRINT_SYMM(pMan->vSymm2, pNtk2);
+
+    #undef PRINT_SYMM
 }
 
 ABC_NAMESPACE_IMPL_END

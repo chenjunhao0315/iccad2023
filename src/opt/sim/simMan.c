@@ -98,7 +98,7 @@ Sym_Man_t * Sym_ManStart( Abc_Ntk_t * pNtk, int fVerbose )
 void Sym_ManStop( Sym_Man_t * p )
 {
     int i;
-    Sym_ManPrintStats( p );
+    // Sym_ManPrintStats( p );
     if ( p->vSuppFun )     Sim_UtilInfoFree( p->vSuppFun );   
     if ( p->vSim )         Sim_UtilInfoFree( p->vSim );   
     if ( p->vNodes )       Vec_PtrFree( p->vNodes );
