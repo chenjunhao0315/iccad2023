@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <tuple>
 
 #include "base/abc/abc.h"
 
@@ -15,11 +16,14 @@
 extern "C" {
 #endif
 
-typedef std::vector<std::pair<int, int> > vSupp;
 typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
-typedef std::vector<std::set<int> > vSense;
+typedef std::vector<std::vector<std::set<int> > > vSymm;
+typedef std::vector<std::set<int> > vSupp;
+
+enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
+typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
 
 struct Literal {
     int Var;
@@ -53,21 +57,25 @@ public:
     vBus  BI2, BO2;
 
     // functional support information
-    vSense FI1, FO1;
-    vSense FI2, FO2;
+    vSupp iFuncSupp1, oFuncSupp1;
+    vSupp iFuncSupp2, oFuncSupp2;
 
     // structrual support information
-    vSense SO1;
-    vSense SO2;
+    vSupp oStrSupp1;
+    vSupp oStrSupp2;
 
     // redundant support information
-    vSense RO1;
-    vSense RO2;
+    vSupp oRedundSupp1;
+    vSupp oRedundSupp2;
+
+    // symmetry group
+    vSymm vSymm1;
+    vSymm vSymm2;
 
     // functional support information
-    // pair<PO, suppFunc>
-    vSupp suppFunc1;
-    vSupp suppFunc2;
+    // tuple<PO, suppFunc, strFunc>
+    vSuppInfo vSuppInfo1;
+    vSuppInfo vSuppInfo2;
 };
 
 enum {
@@ -111,6 +119,7 @@ extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI,
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
