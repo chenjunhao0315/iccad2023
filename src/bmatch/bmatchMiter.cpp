@@ -14,7 +14,7 @@ extern "C" {
 
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2);
-void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI);
+void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO);
 void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter);
 void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MO);
 
@@ -33,7 +33,7 @@ Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
     Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
 
     // Prepare
-    Bmatch_NtkMiterPrepare(pNtk1, pNtk2, pNtkMiter, MI);
+    Bmatch_NtkMiterPrepare(pNtk1, pNtk2, pNtkMiter, MI, MO);
     // Construct
     Bmatch_NtkMiterAddOne(pNtk1, pNtkMiter);
     Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
@@ -62,7 +62,7 @@ int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2) {
     return MIs && MOs && MIs == Abc_NtkPiNum(pNtk2);
 }
 
-void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI) {
+void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO) {
     int i, start = 0;
     Abc_Obj_t *pObj, *pObjNew;
     char buffer[1000];
@@ -105,15 +105,17 @@ void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter) {
 
 void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MO) {
     Vec_Ptr_t *vPairs;
-    Abc_Obj_t *pMiter, *pNode;
+    Abc_Obj_t *pMiter, *pNode, *pNodeTemp;
     int i, j;
 
     vPairs = Vec_PtrAlloc(100);
 
     Abc_NtkForEachCo(pNtk1, pNode, i) {
         if (!MO[i].empty()) {
-            Vec_PtrPush(vPairs, Abc_ObjChild0Copy(pNode));
+            pNodeTemp = pNode;
             for (j = 0; j < MO[i].size(); ++j) {
+                // Move inside the loop (ensuring create a pair?)
+                Vec_PtrPush(vPairs, Abc_ObjChild0Copy(pNodeTemp));
                 pNode = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, MO[i][j].var()));
                 pNode = (MO[i][j].sign()) ? Abc_ObjNot(pNode) : pNode;
                 Vec_PtrPush(vPairs, pNode);
