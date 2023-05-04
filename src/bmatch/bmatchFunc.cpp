@@ -3,8 +3,6 @@
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
 
-#include "print.hpp"
-
 ABC_NAMESPACE_IMPL_START
 
 #define AIG_OBJ_NAME2INDEX(TYPE, pObj)
@@ -107,7 +105,7 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         // check disjointness
         assert(Sim_UtilMatrsAreDisjoint(pSymMan));
         // count the number of pairs
-        Sim_UtilCountPairsAll(pSymMan);
+        // Sim_UtilCountPairsAll(pSymMan);
     }
 
     // detect symmetries using SAT
@@ -127,11 +125,11 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         // check disjointness
         assert(Sim_UtilMatrsAreDisjoint(pSymMan));
         // count the number of pairs
-        Sim_UtilCountPairsAll(pSymMan);
+        // Sim_UtilCountPairsAll(pSymMan);
     }
 
     // count the number of pairs
-    Sim_UtilCountPairsAll(pSymMan);
+    // Sim_UtilCountPairsAll(pSymMan);
 
     auto insert_symm = [](std::vector<std::set<int> > &symm_groups, int i, int j) -> void {
         for (auto &g : symm_groups) {
