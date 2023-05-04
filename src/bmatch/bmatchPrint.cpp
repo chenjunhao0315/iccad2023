@@ -72,7 +72,7 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
     Abc_Print(1, "  MI:");
     for (int i = 0; i < MI.size(); ++i) {
         for (auto &p : MI[i]) {
-            if (i != MI.size() - 1) Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPi(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
+            if (i != MI.size() - 1) Abc_Print(1, " (%c%s, %s)",p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk1, i)), Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
             else Abc_Print(1, " (%s, %s)", p.sign() ? "CONST0" : "CONST1", Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
         }
     }
@@ -80,7 +80,7 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
     for (int i = 0; i < MO.size(); ++i) {
         score += (int)!MO[i].empty() + MO[i].size();
         for (auto &p : MO[i]) {
-            Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPo(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPo(pNtk2, p.var())));
+            Abc_Print(1, " (%c%s, %s)",p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPo(pNtk1, i)), Abc_ObjName(Abc_NtkPo(pNtk2, p.var())));
         }
     }
     Abc_Print(1, "\n  Score: %d\n", score);
