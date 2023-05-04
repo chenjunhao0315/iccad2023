@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/abc/abc.h"
+#include "sat/bsat/satSolver.h"
 
 #define VERBOSE_MASK        (1 << 0)
 #define VERBOSE_DETAIL_MASK (1 << 1)
@@ -35,6 +36,7 @@ struct Literal {
     int      var()       const { return Var >> 1; }
     bool     isConst()   const { return Var < 0; }
     bool     isUndef()   const { return Var == -4; }
+    operator int()       const { return Var; }
 };
 
 const Literal CONST1 = Literal(-1, 0);
@@ -76,6 +78,8 @@ public:
     // tuple<PO, suppFunc, strFunc>
     vSuppInfo vSuppInfo1;
     vSuppInfo vSuppInfo2;
+
+    sat_solver *pInputSolver;
 };
 
 enum {
