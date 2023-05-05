@@ -82,8 +82,11 @@ public:
     vSuppInfo vSuppInfo1;
     vSuppInfo vSuppInfo2;
 
+    // input solver
     sat_solver *pInputSolver;
     sat_solver *pOutputSolver;
+    int ni, mi;
+    int no, mo;
 };
 
 enum {
@@ -91,7 +94,16 @@ enum {
     RESOURCE_LIMIT,
     PROVE_ERROR,
     EQUIVALENT,
-    NON_EQUIVALENT
+    NON_EQUIVALENT,
+    UNDEF
+};
+
+struct EcResult {
+    EcResult() : status(UNDEF), model(NULL) {}
+    EcResult(int status, int *model) : status(status), model(model) {}
+
+    int status;
+    int *model;
 };
 
 // bmatchMan.cpp
@@ -109,7 +121,7 @@ extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
 extern void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchEc.cpp
-extern int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
 
 // bmatchMiter.cpp
 extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
