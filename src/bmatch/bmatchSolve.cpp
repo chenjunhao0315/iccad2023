@@ -13,7 +13,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 void Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO);
 void Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO);
-void Bmatch_PruneINputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI);
+void Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI);
 vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
 
 vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
@@ -53,7 +53,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
 
     while (result.status != EQUIVALENT && iter++ < maxIter) {
-        Bmatch_PruneINputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI);
+        Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI);
         MI = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
 
         if (option & VERBOSE_MASK) Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
@@ -96,7 +96,7 @@ vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
     return MI;
 }
 
-void Bmatch_PruneINputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI) {
+void Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI) {
     if (!pModel1) return;
 
     sat_solver *pSolver = pMan->pInputSolver;
