@@ -13,22 +13,23 @@ extern "C" {
 extern Aig_Man_t *Abc_NtkToDar( Abc_Ntk_t *pNtk, int fExors, int fRegisters );
 static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel, vMatch &MI, vMatch &MO);
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk);
-int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
 
 #ifdef __cplusplus
 }
 #endif
 
-int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose) {
+EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose) {
     abctime clk = Abc_Clock();
     Abc_Ntk_t *pNtkMiter;
     int RetValue, Status;
+    int *model = NULL;
 
     pNtkMiter = Bmatch_NtkMiter(pNtk1, pNtk2, MI, MO);
 
     if (pNtkMiter == NULL) {
         if (fVerbose) Abc_Print(1, "Miter computation has failed.\n");
-        return MITER_FAIL;
+        return {MITER_FAIL, NULL};
     }
 
     RetValue = Abc_NtkMiterIsConstant(pNtkMiter);
@@ -36,14 +37,17 @@ int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO
         if (fVerbose) Abc_Print(1, "Networks are NOT EQUIVALENT after structural hashing.\n");
         // report the error
         pNtkMiter->pModel = Abc_NtkVerifyGetCleanModel(pNtkMiter, 1);
-        Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
-        ABC_FREE(pNtkMiter->pModel);
+        if (fVerbose) Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
+        // ABC_FREE(pNtkMiter->pModel);
+        model = pNtkMiter->pModel; pNtkMiter->pModel = NULL;
         if (fVerbose) Abc_PrintTime(1, "Time", Abc_Clock() - clk);
-        return NON_EQUIVALENT;
+        Abc_NtkDelete(pNtkMiter);
+        return {NON_EQUIVALENT, model};
     } else if (RetValue == 1) {
         if (fVerbose) Abc_Print(1, "Networks are equivalent after structural hashing.\n");
         if (fVerbose) Abc_PrintTime(1, "Time", Abc_Clock() - clk);
-        return EQUIVALENT;
+        Abc_NtkDelete(pNtkMiter);
+        return {EQUIVALENT, NULL};
     }
 
     RetValue = Bmatch_SatFraig(&pNtkMiter);
@@ -65,11 +69,13 @@ int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO
         Status = EQUIVALENT;
     }
     if (fVerbose) Abc_PrintTime(1, "Time", Abc_Clock() - clk);
-    if (pNtkMiter->pModel)
-        Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
+    if (pNtkMiter->pModel) {
+        if (fVerbose) Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
+    }
+    model = pNtkMiter->pModel; pNtkMiter->pModel = NULL;
     Abc_NtkDelete(pNtkMiter);
 
-    return Status;
+    return {Status, model};
 }
 
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk) {
