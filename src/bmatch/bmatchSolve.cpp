@@ -48,7 +48,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
 
     vMatch MI;
-    vMatch MO = {{Literal(0, false)}};
+    vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
     Bmatch_PruneInputSolverByStrSupport(pMan, MO);
     Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
 
@@ -176,16 +176,13 @@ void Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO) {
                 for (auto &m : cond1) {
                     valid[n * mi + m * 2] = 1;
                     valid[n * mi + m * 2 + 1] = 1;
-                    
                 }
-                valid[n * mi + mi - 2] = 1;
-                valid[n * mi + mi - 1] = 1;
             }
         }
     }
 
     for (int n = 0; n < ni; ++n) {
-        for (int m = 0; m < mi; ++m) {
+        for (int m = 0; m < mi - 2; ++m) {
             if (valid[n * mi + m] == 0) {
                 int Lit = toLitCond(n * mi + m, 1);
                 sat_solver_addclause(pSolver, &Lit, &Lit + 1);
