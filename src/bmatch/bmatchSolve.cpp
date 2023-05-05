@@ -13,7 +13,9 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 void Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
 
-vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
+vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
+void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
 std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
@@ -31,9 +33,12 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
 
     // testing flow
-    auto groups = Bmatch_SolveOutputGroup(pMan);
+    Bmatch_SolveOutputGroup(pMan);
 
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
+    
+    Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
+
+    if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
 
     vMatch MI, MO;
     std::tie(MI, MO) = Bmatch_SolveInputOutputMatch(pMan, pNtk1, pNtk2);
@@ -61,9 +66,103 @@ std::tuple<vMatch, vMatch> Bmatch_SolveInputOutputMatch(Bmatch_Man_t *pMan, Abc_
     // vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
 
     vMatch MI = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
-    vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
+    // vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
+    vMatch MO = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
+
 
     return std::make_tuple(MI, MO);
+}
+vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose){
+    vMatch MO(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
+    sat_solver *pSolver = pMan->pOutputSolver;
+    pSolver->verbosity = 2;
+    int n = Abc_NtkPoNum(pNtk2);
+    int m = 2 * (Abc_NtkPoNum(pNtk1));
+    int *model = pSolver->model;
+
+    int status = sat_solver_solve(pSolver, bLits, eLits, 0, 0, 0, 0);
+    print(status == l_True ? "OutputSolver: SAT" : "OutputSolver: UNSAT");
+
+    if (fVerbose) { printf("       "); for (int j = 0; j < m; ++j) { printf("%c%-3s", ((j & 1) != 0) ? '~' : ' ', Abc_ObjName(Abc_NtkPo(pNtk1, j / 2))); }; printf("\n");  }
+    for (int i = 0; i < n; ++i) {
+        if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPo(pNtk2, i)));
+        for (int j = 0; j < m; ++j) {
+            if (fVerbose) printf(" %3d", model[i * m + j] == l_True);
+            if (model[i * m + j] == l_True) {
+                MO[j / 2].emplace_back(i, (int)((j % 2) == 1));
+            }
+        }
+        if (fVerbose) printf("\n");
+    }
+    if (fVerbose) printf("\n");
+
+    return MO;
+
+
+}
+void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
+    sat_solver *pSolver = pMan->pOutputSolver;
+    if (pSolver) sat_solver_delete(pSolver);
+    pSolver = sat_solver_new();
+    pSolver->verbosity = 2;
+
+    int n = Abc_NtkPoNum(pNtk2);
+    int m = 2 * (Abc_NtkPoNum(pNtk1));
+    int *pLits = ABC_ALLOC(int, m*n);
+    
+    sat_solver_setnvars(pSolver, n * m + 1);
+    //at least one pair
+    for(int i = 0; i<n; i++){
+        for(int j = 0; j<m; j++){
+            pLits[i*m+j] = toLit(i*m+j);
+        }
+    }
+    sat_solver_addclause(pSolver, pLits, pLits + m*n);
+
+    //(c+d)<=1 ==> (~c+~d)
+    for(int i = 0; i<n; i++){
+        for(int j = 0; j<m; j++){
+            pLits[0] = toLitCond(i*m+j, 1);
+            for(int k = j+1; k<m; k++){
+                if (k != j){
+                    pLits[1] = toLitCond(i*m+k, 1);
+                    sat_solver_addclause(pSolver, pLits, pLits + 2);
+                }
+            }
+        }
+    }
+
+    //output group
+    vGroup vGroup = pMan->Groups;
+
+    for(int l = 0; l< vGroup.size(); l++){
+        auto Group_ntk1 = vGroup[l].first;
+        for(int k = l+1; k<vGroup.size(); k++){
+            auto Group_ntk2 = vGroup[k].second;
+            for(int i = 0;i<Group_ntk1.size(); i++){
+                for(int j = 0;j<Group_ntk2.size(); j++){
+                    //for output_ntk1_i and output_ntk2_j not in same group
+                    //add clause ~cij ~dij
+                    pLits[0] = toLitCond(Group_ntk1[i]*2 + m*Group_ntk2[j],1);
+                    sat_solver_addclause(pSolver, pLits, pLits + 1);
+                    pLits[0] = toLitCond(Group_ntk1[i]*2 + m*Group_ntk2[j] + 1,1);
+                    sat_solver_addclause(pSolver, pLits, pLits + 1);
+                }
+            }
+            
+        }
+    }
+
+    //allow projectin
+    // for(int i = 0; i<n; i++){
+    //     for(int j = i+1; i<n; i++){
+
+    //     }
+    // }
+
+    ABC_FREE(pLits);
+    pMan->pOutputSolver = pSolver;
+
 }
 
 vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose) {
@@ -111,8 +210,10 @@ void Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
         // V(aij v bij)
         for (int j = 0; j < m; ++j) {
             pLits[j] = toLit(i * m + j);
+            // std::cout<<pLits[j]<<" ";
         }
         sat_solver_addclause(pSolver, pLits, pLits + m);
+        // std::cout<<std::endl;
 
         // VC~(row, 2)
         for (int j = 0; j < m - 1; ++j) {
@@ -128,7 +229,7 @@ void Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
     pMan->pInputSolver = pSolver;
 }
 
-vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
+void Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
     vGroup groups;
     auto &supp1 = pMan->vSuppInfo1;
     auto &supp2 = pMan->vSuppInfo2;
@@ -151,7 +252,8 @@ vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
         }
     }
 
-    return groups;
+    pMan->Groups = groups;
+    // return groups;
 }
 
 ABC_NAMESPACE_IMPL_END
