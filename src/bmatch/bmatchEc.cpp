@@ -37,7 +37,7 @@ EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
         if (fVerbose) Abc_Print(1, "Networks are NOT EQUIVALENT after structural hashing.\n");
         // report the error
         pNtkMiter->pModel = Abc_NtkVerifyGetCleanModel(pNtkMiter, 1);
-        Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
+        if (fVerbose) Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
         // ABC_FREE(pNtkMiter->pModel);
         model = pNtkMiter->pModel; pNtkMiter->pModel = NULL;
         if (fVerbose) Abc_PrintTime(1, "Time", Abc_Clock() - clk);
@@ -70,7 +70,7 @@ EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
     }
     if (fVerbose) Abc_PrintTime(1, "Time", Abc_Clock() - clk);
     if (pNtkMiter->pModel) {
-        Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
+        if (fVerbose) Bmatch_NtkVerifyReportError(pNtk1, pNtk2, pNtkMiter->pModel, MI, MO);
     }
     model = pNtkMiter->pModel; pNtkMiter->pModel = NULL;
     Abc_NtkDelete(pNtkMiter);

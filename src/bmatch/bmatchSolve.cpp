@@ -35,10 +35,10 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     int maxIter = 50, iter = 0;
     EcResult result;
 
-    // if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
-    // if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
-    // if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
 
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
 
@@ -56,16 +56,18 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI);
         MI = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
 
-        if (option & VERBOSE_MASK) Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
-
         assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
         assert(MO.size() == Abc_NtkPoNum(pNtk1));
         result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO, 0);
-        print("Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
+        print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
     }
 
-    if (result.status == EQUIVALENT) printf("Find matching at iteration %d!!!\n", iter);
-    else printf("Reach maximum iteration!\n");
+    if (result.status == EQUIVALENT) {
+        printf("Find matching at iteration %d!!!\n", iter);
+        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
+    } else {
+        printf("Reach maximum iteration!\n");
+    }
 }
 
 vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose) {
@@ -91,7 +93,6 @@ vMatch Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
         }
         if (fVerbose) printf("\n");
     }
-    if (fVerbose) printf("\n");
 
     return MI;
 }
