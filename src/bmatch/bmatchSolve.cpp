@@ -48,7 +48,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
 
     vMatch MI;
-    vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
+    vMatch MO = {{Literal(0, false)}};
     Bmatch_PruneInputSolverByStrSupport(pMan, MO);
     Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
 
