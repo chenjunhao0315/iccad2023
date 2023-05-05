@@ -29,18 +29,14 @@ typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
 struct Literal {
     int Var;
 
-    Literal() : Var(-4) {}
-    Literal(int Var, int Sign = false) : Var(Var * 2 + (int)Sign) {}
+    Literal() : Var(-1) {}
+    Literal(int Var, bool Sign = false) : Var(Var * 2 + (int)Sign) {}
     
     bool     sign()      const { return Var & 1; }
     int      var()       const { return Var >> 1; }
-    bool     isConst()   const { return Var < 0; }
-    bool     isUndef()   const { return Var == -4; }
+    bool     isUndef()   const { return Var == -1; }
     operator int()       const { return Var; }
 };
-
-const Literal CONST1 = Literal(-1, 0);
-const Literal CONST0 = Literal(-1, -1);
 
 typedef std::vector<std::vector<Literal> > vMatch;
 
@@ -100,6 +96,14 @@ struct EcResult {
 
     int status;
     int *model;
+};
+
+struct InputMapping {
+    InputMapping() : status(0) {}
+    InputMapping(int status, vMatch MI) : status(status), MI(MI) {}
+
+    int status;
+    vMatch MI;
 };
 
 // bmatchMan.cpp

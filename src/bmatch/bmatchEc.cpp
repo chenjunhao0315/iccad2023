@@ -112,6 +112,9 @@ void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel
             pModel2[p.var()] = (p.sign()) ? !pModel1[i] : pModel1[i];
         }
     }
+    for (auto &p : MI[Abc_NtkPiNum(pNtk1)]) {
+        pModel2[p.var()] = (p.sign()) ? 0 : 1;
+    }
 
     // get the CO values under this model
     pValues1 = Abc_NtkVerifySimulatePattern(pNtk1, pModel1);
