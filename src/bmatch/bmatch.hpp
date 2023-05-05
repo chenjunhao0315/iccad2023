@@ -62,6 +62,9 @@ public:
     vSupp iFuncSupp1, oFuncSupp1;
     vSupp iFuncSupp2, oFuncSupp2;
 
+    //group information
+    vGroup Groups;
+
     // structrual support information
     vSupp oStrSupp1;
     vSupp oStrSupp2;
@@ -80,6 +83,7 @@ public:
     vSuppInfo vSuppInfo2;
 
     sat_solver *pInputSolver;
+    sat_solver *pOutputSolver;
 };
 
 enum {
