@@ -23,7 +23,7 @@ void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtk
 #endif
 
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
-    char Buffer[1000];
+    char Buffer[100];
     Abc_Ntk_t *pNtkMiter;
 
     if (!Bmatch_NtkMiterCheck(MI, MO, pNtk2)) return NULL;
@@ -65,7 +65,7 @@ int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2) {
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO) {
     int i, start = 0;
     Abc_Obj_t *pObj, *pObjNew;
-    char buffer[1000];
+    char buffer[100];
 
     Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
     Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);

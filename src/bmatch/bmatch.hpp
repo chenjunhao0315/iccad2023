@@ -21,6 +21,7 @@ typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
 typedef std::vector<std::vector<std::set<int> > > vSymm;
+typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
@@ -65,10 +66,13 @@ public:
     // redundant support information
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
+    std::set<int> sRedund1;
 
     // symmetry group
     vSymm vSymm1;
     vSymm vSymm2;
+    vSymmPair vSymmPair1;
+    vSymmPair vSymmPair2;
 
     // functional support information
     // tuple<PO, suppFunc, strFunc>
@@ -115,6 +119,8 @@ extern void Bmatch_ParseInput(Bmatch_Man_t *pMan, char *filename);
 extern int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2);
 
 // bmatchFunc.cpp
+extern void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+extern void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchSolve.cpp
