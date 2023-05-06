@@ -137,8 +137,8 @@ int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI) {
                                 find = 1;
                                 pLits[0] = toLitCond(p.var() * mi + j * 2 + q.sign(), 1);
                                 pLits[1] = toLitCond(q.var() * mi + i * 2 + p.sign(), 1);
-                                printf("(%d, %d) ", p.var(), j * 2 + q.sign());
-                                printf("(%d, %d)\n", q.var(), i * 2 + p.sign());
+                                // printf("(%d, %d) ", p.var(), j * 2 + q.sign());
+                                // printf("(%d, %d)\n", q.var(), i * 2 + p.sign());
                                 ret = sat_solver_addclause(pSolver, pLits, pLits + 2);
                                 break;
                             }
