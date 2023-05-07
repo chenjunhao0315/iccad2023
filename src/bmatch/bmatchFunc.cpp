@@ -21,7 +21,7 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
-void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
 void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
@@ -47,7 +47,8 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     // Redundant support information
     Bmatch_CalRedundSupp(pMan->oRedundSupp1, pMan->oStrSupp1, pMan->oFuncSupp1);
     Bmatch_CalRedundSupp(pMan->oRedundSupp2, pMan->oStrSupp2, pMan->oFuncSupp2);
-    Bmatch_CalCir1Redund(pNtk1, pMan->oStrSupp1, pMan->sRedund1);
+    Bmatch_CalCirRedund(pNtk1, pMan->oStrSupp1, pMan->sRedund1);
+    Bmatch_CalCirRedund(pNtk2, pMan->oStrSupp2, pMan->sRedund2);
 
     Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
@@ -55,9 +56,9 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     // Sensitivity or others
 }
 
-void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund) {
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, std::set<int> &sRedund) {
     sRedund.clear();
-    for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i)
+    for (int i = 0; i < Abc_NtkPiNum(pNtk); ++i)
         sRedund.insert(i);
 
     for (auto &s : oStrSupp)
@@ -227,9 +228,6 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         symm_groups.emplace_back(std::set<int>{i, j});
     };
 
-    std::vector<int> check_list(Abc_NtkPiNum(pNtk), 0);
-    std::vector<std::pair<int, int> > vSymmAllPair;
-
     iFuncSupp.resize(Abc_NtkPiNum(pNtk));
     for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
         int j, k, Index1, Index2;
@@ -243,10 +241,6 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
             Vec_IntForEachEntryStart(vSupport, k, Index2, Index1 + 1) {
                 if (Extra_BitMatrixLookup1(pMat, j, k)) {
                     insert_symm(symm_groups, j, k);
-                    if (!(check_list[j] == 1 && check_list[k] == 1)) {
-                        check_list[j] = check_list[k] = std::max(check_list[j] + 1, check_list[k] + 1);
-                        vSymmAllPair.emplace_back(j, k);
-                    }
                 }
             }
         }
@@ -262,9 +256,29 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         oFuncSupp.emplace_back(std::move(ofuncSupp));
     }
 
-    for (auto &p : vSymmAllPair) {
-        if (check_list[p.first] == 1 && check_list[p.second] == 1) {
-            vSymmPair.push_back(p);
+    for (auto &symm : vSymm) {
+        for (auto &s : symm) {
+            int supp_check = 1;
+            std::set<int> supp_prev;
+            for (auto &p : s) {
+                auto &supp = iFuncSupp[p];
+                if (supp_prev.empty()) {
+                    supp_prev = supp;
+                } else if (supp_prev == supp || supp.empty()) {
+                    
+                } else {
+                    supp_check = 0;
+                    break;
+                }
+            }
+            if (supp_check == 1) {
+                std::vector<int> symm_set(s.begin(), s.end());
+                for (int i = 0; i < symm_set.size() - 1; ++i) {
+                    for (int j = i + 1; j < symm_set.size(); ++j) {
+                        vSymmPair.emplace_back(symm_set[i], symm_set[j]);
+                    }
+                }
+            }
         }
     }
 

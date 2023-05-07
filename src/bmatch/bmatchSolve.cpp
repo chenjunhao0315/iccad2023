@@ -13,8 +13,9 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO);
+int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI);
-int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, int enable_const);
+int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO);
 InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
 
 vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
@@ -23,67 +24,76 @@ vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
 }
 #endif
 
-// vMatch MI = {{Literal(1, false), Literal(3, false)}, {Literal(2, true)}, {Literal(0, true)}, {}};
-// vMatch MO = {{Literal(0, false)}};
+// x1
+#define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}};
 
-// vMatch MI = {{Literal(2, false)}, {Literal(3, false)}, {Literal(0, false)}, {Literal(1, false)}, {Literal(4, false)}, {}};
-// vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
-
-// vMatch MI = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}, {Literal(4, false)}, {}};
-// vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
+// x2
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
 
 // case 0
-// vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
 
 // case 10
-// vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
 
 // case 14
-// vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
+
+// case 15
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(8)}, {Literal(0)}, {Literal(2)}, {Literal(4)}, {Literal(5)}, {Literal(3)}, {Literal(1)}, {Literal(9)}, {Literal(6)}, {Literal(7)}};
+
+// case 16
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
-    int maxIter = 500, iter = 0;
+    int maxIter = 500000, iter = 0;
     int ret = 1;
     EcResult result;
 
     Abc_NtkPrintIo(stdout, pNtk1, 0);
     Abc_NtkPrintIo(stdout, pNtk2, 0);
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintInputSense(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
 
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
 
     // testing flow
-    auto groups = Bmatch_SolveOutputGroup(pMan);
+    // auto groups = Bmatch_SolveOutputGroup(pMan);
+    // if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
 
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
+    abctime clkTotal = Abc_Clock();
 
     vMatch MI;
-    vMatch MO = {{Literal(0, false)}};
-    ret = Bmatch_PruneInputSolverByStrSupport(pMan, MO);
-    ret = Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
+    OUTPUT_MAPPING
+    assert(MO.size() == Abc_NtkPoNum(pNtk1));
+    ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO);
+    ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
+    ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO);
 
     while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
-        ret = Bmatch_PruneInputSolverBySymmetry(pMan, MI);
-        ret = Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, 1);
+        ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO);
+        ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
         if (!ret) break;
-        auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
+        auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, (pMan->mi <= 10));
         if (Mapping.status == 0) break;
         MI = Mapping.MI;
 
         assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
-        assert(MO.size() == Abc_NtkPoNum(pNtk1));
         result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO, 0);
-        print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
+        // print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
     }
+
+    Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 
     if (result.status == EQUIVALENT) {
         printf("Find matching at iteration %d!!!\n", iter);
         Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
     } else {
-        if (iter - 1 == maxIter) printf("Reach maximum iteration!\n");
+        if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
+        else printf("Input Solver UNSAT Mapping is infeasible\n");
     }
 }
 
@@ -92,7 +102,7 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     sat_solver *pSolver = pMan->pInputSolver;
 
     int status = sat_solver_solve(pSolver, bLits, eLits, 0, 0, 0, 0);
-    print(status == l_True ? "InputSolver: SAT" : "InputSolver: UNSAT");
+    // print(status == l_True ? "InputSolver: SAT" : "InputSolver: UNSAT");
     int *model = pSolver->model;
     if (status == l_False) return {0, MI};
 
@@ -110,8 +120,60 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
         }
         if (fVerbose) printf("\n");
     }
+    if (fVerbose) printf("\n");
 
     return {1, MI};
+}
+
+int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO) {
+    sat_solver *pSolver = pMan->pInputSolver;
+
+    vSymm &symm1 = pMan->vSymm1;
+    vSymm &symm2 = pMan->vSymm2;
+
+    int ret = 1;
+    int mi = pMan->mi;
+
+    int *pLits = ABC_ALLOC(int, pMan->mi * pMan->ni);
+
+    for (int fi = 0; fi < MO.size(); ++fi) {
+        for (auto &g : MO[fi]) {
+            int gi = g.var();
+
+            for (auto &vSymm1 : symm1[fi]) {      // vector of fi input symmetry group
+                for (auto &vSymm2 : symm2[gi]) {  // vector of gi input symmetry group
+                    for (auto &xi : vSymm1) {
+                        for (auto &yi : vSymm2) {
+                            for (int j = 0; j < 2; ++j) {
+                                int start = 0;
+                                pLits[start++] = toLitCond(yi * mi + xi * 2 + j, (1 - j));
+                                pLits[start++] = toLitCond(yi * mi + xi * 2 + (1 - j), j);
+                                // printf("%c(%d, %d) ", (1 - j) ? '!' : ' ', yi, xi * 2 + j);
+                                // printf("%c(%d, %d) ", (j) ? '!' : ' ', yi, xi * 2 + (1 - j));
+                                for (auto &xir : vSymm1) {
+                                    if (xi == xir) continue;
+                                    for (auto &yia : vSymm2) {
+                                        if (yi == yia) continue;
+                                        pLits[start++] = toLit(yia * mi + xir * 2);
+                                        pLits[start++] = toLit(yia * mi + xir * 2 + 1);
+                                        // printf("(%d, %d) ", yia, xir * 2);
+                                        // printf("(%d, %d) ", yia, xir * 2 + 1);
+                                    }
+                                }
+                                // printf("\n");
+                                ret &= sat_solver_addclause(pSolver, pLits, pLits + start);
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    ABC_FREE(pLits);
+
+    return ret;
 }
 
 int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI) {
@@ -139,7 +201,7 @@ int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI) {
                                 pLits[1] = toLitCond(q.var() * mi + i * 2 + p.sign(), 1);
                                 // printf("(%d, %d) ", p.var(), j * 2 + q.sign());
                                 // printf("(%d, %d)\n", q.var(), i * 2 + p.sign());
-                                ret = sat_solver_addclause(pSolver, pLits, pLits + 2);
+                                ret &= sat_solver_addclause(pSolver, pLits, pLits + 2);
                                 break;
                             }
                         }
@@ -153,7 +215,7 @@ int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI) {
     return ret;
 }
 
-int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, int enable_const) {
+int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO) {
     if (!pModel1) return 1;
 
     int ret = 1;
@@ -171,11 +233,10 @@ int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     int mi = pMan->mi;
     int k = 0;
-    int *pLits = ABC_ALLOC(int, (Abc_NtkPiNum(pNtk1) + 1) * Abc_NtkPiNum(pNtk2));
+    int *pLits = ABC_ALLOC(int, (Abc_NtkPiNum(pNtk1) + 2) * Abc_NtkPiNum(pNtk2));
 
     std::set<int> &sRedund1 = pMan->sRedund1;
-    std::set<int> sRedund2;
-    Bmatch_CalCir2RedundWithGivenMapping(pNtk1, pNtk2, MI, sRedund2);
+    std::set<int> &sRedund2 = pMan->sRedund2;
 
     // counter example
     for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
@@ -183,10 +244,11 @@ int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
             if (sRedund2.count(i) == 1) continue;
             else if (sRedund1.count(j) == 1) continue;
             pLits[k++] = toLit(i * mi + j * 2 + (pModel2[i] == pModel1[j]));
+            // printf("(%d %d) ", i, j * 2 + (pModel2[i] == pModel1[j]));
         }
         pLits[k++] = toLit((i * mi) + mi - 1 - (pModel2[i] == 0)); // don't know how this work???
     }
-    ret = sat_solver_addclause(pSolver, pLits, pLits + k);
+    ret &= sat_solver_addclause(pSolver, pLits, pLits + k);
 
     // discard current
     k = 0;
@@ -195,7 +257,7 @@ int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
             pLits[k++] = toLitCond(p.var() * mi + i * 2 + p.sign(), 1);
         }
     }
-    ret = sat_solver_addclause(pSolver, pLits, pLits + k);
+    ret &= sat_solver_addclause(pSolver, pLits, pLits + k);
 
     ABC_FREE(pModel1);
     ABC_FREE(pModel2);
@@ -226,8 +288,14 @@ int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO) {
                 for (auto &n : cond2) {     // every support(gi)
                     pLits[i++] = toLit(n * mi + m * 2);
                     pLits[i++] = toLit(n * mi + m * 2 + 1);
+                    if (cond1.size() == cond2.size()) { // if functional support is the same, then the input of gi cannot be const
+                        int Lit = toLitCond(n * mi + mi - 1, 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                        Lit = toLitCond(n * mi + mi - 2, 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                    }
                 }
-                ret = sat_solver_addclause(pSolver, pLits, pLits + i);
+                ret &= sat_solver_addclause(pSolver, pLits, pLits + i);
             }
         }
     }
@@ -267,7 +335,7 @@ int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO) {
         for (int m = 0; m < mi - 2; ++m) {
             if (valid[n * mi + m] == 0) {
                 int Lit = toLitCond(n * mi + m, 1);
-                ret = sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
             }
         }
     }
@@ -286,25 +354,37 @@ int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk
     // pSolver->fPrintClause = 1;
     // pSolver->verbosity = 2;
 
+    int start = 0;
     int n = pMan->ni = Abc_NtkPiNum(pNtk2);
     int m = pMan->mi = 2 * (Abc_NtkPiNum(pNtk1) + 1);
+    std::set<int> &sRedund1 = pMan->sRedund1;
+    std::set<int> &sRedund2 = pMan->sRedund2;
 
     int *pLits = ABC_ALLOC(int, m);
 
     sat_solver_setnvars(pSolver, n * m);
     for (int i = 0; i < n; ++i) {
-        // V(aij v bij)
-        for (int j = 0; j < m; ++j) {
-            pLits[j] = toLit(i * m + j);
+        // if input of cir2 is redundant
+        if (sRedund2.count(i) == 1) {
+            pLits[0] = toLit(i * m + m - 1); // set it to constant
+            ret &= sat_solver_addclause(pSolver, pLits, pLits + 1);
+            continue;
         }
-        ret = sat_solver_addclause(pSolver, pLits, pLits + m);
+        // V(aij v bij)
+        start = 0;
+        for (int j = 0; j < m; ++j) {
+            if (sRedund1.count(j / 2) == 1) continue; // do not consider cir1's redundant input
+            pLits[start++] = toLit(i * m + j);
+        }
+        ret &= sat_solver_addclause(pSolver, pLits, pLits + start);
 
         // VC~(row, 2)
         for (int j = 0; j < m - 1; ++j) {
+            if (sRedund1.count(j / 2) == 1) continue; // do not consider cir1's redundant input
             pLits[0] = toLitCond(i * m + j, 1);
             for (int k = j + 1; k < m; ++k) {
                 pLits[1] = toLitCond(i * m + k, 1);
-                ret = sat_solver_addclause(pSolver, pLits, pLits + 2);
+                ret &= sat_solver_addclause(pSolver, pLits, pLits + 2);
             }
         }
     }
