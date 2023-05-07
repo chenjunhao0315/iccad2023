@@ -67,6 +67,7 @@ public:
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
     std::set<int> sRedund1;
+    std::set<int> sRedund2;
 
     // symmetry group
     vSymm vSymm1;
@@ -143,7 +144,7 @@ extern void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
