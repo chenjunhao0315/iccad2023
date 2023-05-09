@@ -22,6 +22,7 @@ typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
 typedef std::vector<std::vector<std::set<int> > > vSymm;
 typedef std::vector<std::set<int> > vSupp;
+typedef std::vector<std::vector<int>> vEqual;
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
 typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
@@ -43,6 +44,7 @@ const Literal CONST1 = Literal(-1, 0);
 const Literal CONST0 = Literal(-1, -1);
 
 typedef std::vector<std::vector<Literal> > vMatch;
+typedef std::vector<std::vector<int>>  vMatch_Group;
 
 class Bmatch_Man_t {
 public:
@@ -65,6 +67,10 @@ public:
     //group information
     vGroup Groups;
 
+    //equal group
+    vEqual oEqual1;
+    vEqual oEqual2;
+
     // structrual support information
     vSupp oStrSupp1;
     vSupp oStrSupp2;
@@ -82,11 +88,19 @@ public:
     vSuppInfo vSuppInfo1;
     vSuppInfo vSuppInfo2;
 
-    // input solver
+    // input solver, output solver
     sat_solver *pInputSolver;
     sat_solver *pOutputSolver;
     int ni, mi;
     int no, mo;
+
+    //learned clause level
+    std::vector<int> LearnedLevel;
+    std::vector<int> LearnedAssumption;
+    int Projective;
+    bool AllowProjection;
+    std::vector<int> ClauseControl;
+    vMatch_Group MO;
 };
 
 enum {
@@ -140,6 +154,7 @@ extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t 
 extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }

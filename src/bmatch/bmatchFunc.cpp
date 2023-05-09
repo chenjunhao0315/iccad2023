@@ -21,6 +21,7 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
+void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 #ifdef __cplusplus
@@ -48,6 +49,10 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
 
     Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
+
+    //equality
+    Bmatch_CalEqual(pMan->oEqual1, pNtk1);
+    Bmatch_CalEqual(pMan->oEqual2, pNtk2);
 
     // Sensitivity or others
 }
@@ -178,6 +183,34 @@ void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp)
     }
 
     std::sort(vSuppInfo.begin(), vSuppInfo.end(), [](std::tuple<int, int, int> const &t1, std::tuple<int, int, int> const &t2) { return std::get<SUPPFUNC>(t1) < std::get<SUPPFUNC>(t2); });
+}
+
+void Bmatch_CalEqual(vEqual &oEqual, Abc_Ntk_t *pNtk){
+    int i, j, index1, index2;
+    
+    Abc_Obj_t *pNode1, *pNode2;
+    std::vector<int> temp;
+    std::vector<int> cal;
+    Abc_NtkForEachPo( pNtk, pNode1, i ){
+        index1 = Bmatch_LinearSearchPoName2Index(pNtk, pNode1);
+        if(std::find(cal.begin(), cal.end(), index1) != cal.end()) continue;
+        
+        temp.emplace_back(index1);
+        bool add = false;
+        Abc_NtkForEachPo(pNtk, pNode2, j){
+            if((Abc_ObjFanin0(pNode1) == Abc_ObjFanin0(pNode2)) & (pNode1->fCompl0 == pNode2->fCompl0) \
+            & (Abc_ObjFanin1(pNode1) == Abc_ObjFanin1(pNode2)) & (pNode1->fCompl1 == pNode2->fCompl1) ){
+                add = true;
+                index2 = Bmatch_LinearSearchPoName2Index(pNtk, pNode2);
+                temp.emplace_back(index2);
+                cal.emplace_back(index2);
+            }
+        }
+
+        if (add) oEqual.emplace_back(temp);
+        if (add) cal.emplace_back(index1);
+        temp.clear();
+    }
 }
 
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk) {
