@@ -313,12 +313,14 @@ void Bmatch_CalEqual(vEqual &oEqual, Abc_Ntk_t *pNtk){
         temp.emplace_back(index1);
         bool add = false;
         Abc_NtkForEachPo(pNtk, pNode2, j){
-            if((Abc_ObjFanin0(pNode1) == Abc_ObjFanin0(pNode2)) & (pNode1->fCompl0 == pNode2->fCompl0) \
-            & (Abc_ObjFanin1(pNode1) == Abc_ObjFanin1(pNode2)) & (pNode1->fCompl1 == pNode2->fCompl1) ){
-                add = true;
-                index2 = Bmatch_LinearSearchPoName2Index(pNtk, pNode2);
-                temp.emplace_back(index2);
-                cal.emplace_back(index2);
+            if(pNode1 != pNode2){
+                if((Abc_ObjFanin0(pNode1) == Abc_ObjFanin0(pNode2)) & (pNode1->fCompl0 == pNode2->fCompl0) \
+                & (Abc_ObjFanin1(pNode1) == Abc_ObjFanin1(pNode2)) & (pNode1->fCompl1 == pNode2->fCompl1) ){
+                    add = true;
+                    index2 = Bmatch_LinearSearchPoName2Index(pNtk, pNode2);
+                    temp.emplace_back(index2);
+                    cal.emplace_back(index2);
+            }
             }
         }
 
