@@ -21,6 +21,7 @@ typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
 typedef std::vector<std::vector<std::set<int> > > vSymm;
+typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
 typedef std::vector<std::vector<int>> vEqual;
 
@@ -30,18 +31,14 @@ typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
 struct Literal {
     int Var;
 
-    Literal() : Var(-4) {}
-    Literal(int Var, int Sign = false) : Var(Var * 2 + (int)Sign) {}
+    Literal() : Var(-1) {}
+    Literal(int Var, bool Sign = false) : Var(Var * 2 + (int)Sign) {}
     
     bool     sign()      const { return Var & 1; }
     int      var()       const { return Var >> 1; }
-    bool     isConst()   const { return Var < 0; }
-    bool     isUndef()   const { return Var == -4; }
+    bool     isUndef()   const { return Var == -1; }
     operator int()       const { return Var; }
 };
-
-const Literal CONST1 = Literal(-1, 0);
-const Literal CONST0 = Literal(-1, -1);
 
 typedef std::vector<std::vector<Literal> > vMatch;
 typedef std::vector<std::vector<int>>  vMatch_Group;
@@ -78,10 +75,14 @@ public:
     // redundant support information
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
+    std::set<int> sRedund1;
+    std::set<int> sRedund2;
 
     // symmetry group
     vSymm vSymm1;
     vSymm vSymm2;
+    vSymmPair vSymmPair1;
+    vSymmPair vSymmPair2;
 
     // functional support information
     // tuple<PO, suppFunc, strFunc>
@@ -120,6 +121,14 @@ struct EcResult {
     int *model;
 };
 
+struct InputMapping {
+    InputMapping() : status(0) {}
+    InputMapping(int status, vMatch MI) : status(status), MI(MI) {}
+
+    int status;
+    vMatch MI;
+};
+
 // bmatchMan.cpp
 extern Bmatch_Man_t* Bmatch_ManStart();
 extern void Bmatch_ManStop(Bmatch_Man_t* p);
@@ -129,6 +138,8 @@ extern void Bmatch_ParseInput(Bmatch_Man_t *pMan, char *filename);
 extern int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2);
 
 // bmatchFunc.cpp
+extern void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+extern void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchSolve.cpp
@@ -151,7 +162,7 @@ extern void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
