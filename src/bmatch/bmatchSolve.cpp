@@ -14,6 +14,7 @@ int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk
 int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO);
+int Bmatch_PruneInputSolverByUnate(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI);
 int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO);
 InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
@@ -47,7 +48,7 @@ vGroup Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
-    int maxIter = 500000, iter = 0;
+    int maxIter = 5000, iter = 0;
     int ret = 1;
     EcResult result;
 
@@ -57,12 +58,9 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
 
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
-
-    // testing flow
-    // auto groups = Bmatch_SolveOutputGroup(pMan);
-    // if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, groups);
 
     abctime clkTotal = Abc_Clock();
 
@@ -72,12 +70,13 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO);
     ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
     ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO);
+    ret &= Bmatch_PruneInputSolverByUnate(pMan, MO);
 
     while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
         ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO);
         ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
         if (!ret) break;
-        auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, (pMan->mi <= 10));
+        auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
         if (Mapping.status == 0) break;
         MI = Mapping.MI;
 
@@ -123,6 +122,55 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     if (fVerbose) printf("\n");
 
     return {1, MI};
+}
+
+int Bmatch_PruneInputSolverByUnate(Bmatch_Man_t *pMan, vMatch &MO) {
+    sat_solver *pSolver = pMan->pInputSolver;
+
+    Mat &unateMat1 = pMan->unateMat1;
+    Mat &unateMat2 = pMan->unateMat2;
+
+    int ret = 1;
+
+    int mi = pMan->mi;
+    int ni = pMan->ni;
+
+    int Lit;
+
+    for (int fi = 0; fi < MO.size(); ++fi) {
+        for (auto &g : MO[fi]) {
+            int gi = g.var();
+
+            for (int xi = 0; xi < mi / 2 - 1; ++xi) {
+                int unateness1 = unateMat1[fi][xi];
+
+                for (int yi = 0; yi < ni; ++yi) {
+                    int unateness2 = unateMat2[gi][yi];
+
+                    if (unateness1 == 1 && unateness2 == 1) {
+                        Lit = toLitCond(yi * mi + xi * 2 + (1 - g.sign()), 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                        // printf("(%d, %d) ", yi, xi * 2 + 1);
+                    } else if (unateness1 == 1 && unateness2 == 2) {
+                        Lit = toLitCond(yi * mi + xi * 2 + g.sign(), 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                        // printf("(%d, %d) ", yi, xi * 2);
+                    } else if (unateness1 == 2 && unateness2 == 1) {
+                        Lit = toLitCond(yi * mi + xi * 2 + g.sign(), 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                        // printf("(%d, %d) ", yi, xi * 2);
+                    } else if (unateness1 == 2 && unateness2 == 2) {
+                        Lit = toLitCond(yi * mi + xi * 2 + (1 - g.sign()), 1);
+                        ret &= sat_solver_addclause(pSolver, &Lit, &Lit + 1);
+                        // printf("(%d, %d) ", yi, xi * 2 + 1);
+                    }
+                }
+            }
+            // printf("\n");
+        }
+    }
+
+    return ret;
 }
 
 int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO) {

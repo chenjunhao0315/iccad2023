@@ -17,12 +17,16 @@
 extern "C" {
 #endif
 
+#define S_ONE (~0)
+#define S_ZERO (0)
+
 typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
 typedef std::vector<std::vector<std::set<int> > > vSymm;
 typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
+typedef std::vector<std::vector<int> > Mat;
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
 typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
@@ -80,6 +84,10 @@ public:
     vSuppInfo vSuppInfo1;
     vSuppInfo vSuppInfo2;
 
+    // unateness
+    Mat unateMat1;
+    Mat unateMat2;
+
     // input solver
     sat_solver *pInputSolver;
     int ni, mi;
@@ -119,6 +127,10 @@ extern void Bmatch_ManStop(Bmatch_Man_t* p);
 extern void Bmatch_ParseInput(Bmatch_Man_t *pMan, char *filename);
 extern int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2);
 
+// bmatchUnate.cpp
+extern void Bmatch_RandomSimUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int iter);
+extern void Bmatch_SatUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int Po, int iter);
+
 // bmatchFunc.cpp
 extern void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
 extern void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
@@ -147,6 +159,7 @@ extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t 
 extern void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
