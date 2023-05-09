@@ -90,18 +90,18 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
 
-    while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
-        ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
-        ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
-        if (!ret) break;
-        auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, (pMan->mi <= 10));
-        if (Mapping.status == 0) break;
-        MI = Mapping.MI;
+        while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
+            ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
+            ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
+            if (!ret) break;
+            auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, (pMan->mi <= 10));
+            if (Mapping.status == 0) break;
+            MI = Mapping.MI;
 
-        assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
-        result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0);
-        // print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
-    }
+            assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
+            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0);
+            // print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
+        }
 
     Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 
