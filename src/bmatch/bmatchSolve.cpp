@@ -31,12 +31,12 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 #endif
 
 // x1
-#define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}};
 
 // x2
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
-
+#define OUTPUT_MAPPING vMatch MO_test = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
+// #define OUTPUT_MAPPING vMatch MO_test = {{}, {Literal(1, false)}, {}, {}};
 // case 0
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
 
@@ -82,10 +82,15 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         //find new pair of output matching
         EcResult result;
         MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
-        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+        OUTPUT_MAPPING
+        // MO_new = MO_test;
+        // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+        // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
         if (MO_new.size() == 0) return;
         
         //input solve
+        printf("input solve start\n");
+        Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
         ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
@@ -103,12 +108,19 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             // print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
         }
 
-    Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
+        Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 
         if (result.status == EQUIVALENT) {
             printf("Find matching at iteration %d!!!\n", iter);
             Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
             Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+
+            int score = 0;
+            for (int i = 0; i < MO_new.size(); ++i) {
+                score += (int)!MO_new[i].empty() + MO_new[i].size();
+            }
+            if (option & VERBOSE_MASK) printf("%3d", score);
+            optimal = score == 2*Abc_NtkPoNum(pNtk2);
         } else {
             if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
         else printf("Input Solver UNSAT Mapping is infeasible\n");
@@ -116,7 +128,8 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             
         }
         iter = 0;
-        optimal = result.status == EQUIVALENT;
+        ret = 1;
+        
     }
 }
 
@@ -130,10 +143,9 @@ void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
     if(status){
         //add new assumption base on i level(c)
         auto &MoBack=MO.back();
-        LearnedLevel.emplace_back(MoBack.size()+1);
+        LearnedLevel.emplace_back(MoBack.size());
         for(auto &match:MoBack){
             // sat_solver_push(pSolver, toLit(match));
-            
             LearnedAssumption.emplace_back(toLit(match));
         }
 
@@ -153,6 +165,15 @@ void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
         MO.pop_back();
 
     }
+    // std::cout<<"learned level ";
+    // for(int i:LearnedLevel){
+    //     std::cout<<i<<" ";
+    // }
+    // std::cout<<std::endl<<"assumptions ";
+    // for(int i:LearnedAssumption){
+    //     std::cout<<i<<" ";
+    // }
+    // std::cout<<std::endl;
     pMan->pOutputSolver = pSolver;
     pMan->LearnedLevel = LearnedLevel;
     pMan->LearnedAssumption = LearnedAssumption;
@@ -163,10 +184,12 @@ bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m){
     sat_solver *pSolver = pMan->pOutputSolver;
     std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
     vMatch_Group &MO = pMan->MO;
-
+    std::cout<<"start backtrack ";
     for(int i = 0; i < LearnedLevel.back(); i++){
+        // std::cout<<LearnedAssumption.back()<<" ";
         LearnedAssumption.pop_back();
     }
+    std::cout<<std::endl;
     
     LearnedLevel.pop_back();
     if (LearnedLevel.size() == 0) LearnedLevel.emplace_back(1);
@@ -194,19 +217,26 @@ bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m){
 void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
     std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
     sat_solver *pSolver = pMan->pOutputSolver;
-
+    
     int *pLits = ABC_ALLOC(int, n*m);
+    int cont = 0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<m; j++){
-            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), i*m+j) == LearnedAssumption.end()){
-                pLits[i*m+j] = toLit(i*m+j);
+            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), toLit(i*m+j)) == LearnedAssumption.end() & \
+                std::find(LearnedAssumption.begin(), LearnedAssumption.end(), toLitCond(i*m+j, 1)) == LearnedAssumption.end()){
+                pLits[cont] = toLit(i*m+j);
+                cont++;
             }
         }
     }
+    
     sat_solver_addvar(pSolver);
     pLits[m*n-LearnedAssumption.size()] = toLit(sat_solver_nvars(pSolver));
     pMan->ClauseControl.emplace_back(sat_solver_nvars(pSolver));
-    sat_solver_addclause(pSolver, pLits, pLits + m*n - LearnedAssumption.size() + 1);
+    
+    int LitSize = cont + 1;
+    sat_solver_addclause(pSolver, pLits, pLits + LitSize);
+    ABC_FREE(pLits);
 }
 
 vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose){
@@ -219,7 +249,8 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     int n = Abc_NtkPoNum(pNtk2);
     int m = 2 * (Abc_NtkPoNum(pNtk1));
     int *model = pSolver->model;
-    int LitSize = learnedAssumption.size()+ClauseControl.size()+1;
+    // int LitSize = learnedAssumption.size()+ClauseControl.size()+1;
+    int LitSize = ClauseControl.size()+learnedAssumption.size();
     vMatch_Group &MO = pMan->MO;
 
 
@@ -233,46 +264,62 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     for(int i = 0; i<ClauseControl.size(); i++){
         if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl.back(), 1);
         else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
-        // std::cout<<"clause"<<ClauseControl[i];
     }
     
     // //projective
-    if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
-    else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
+    // if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
+    // else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
+    // std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<std::endl;
+    
 
-
+    std::cout<<"output solve start\n";
     int status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
     while(status == l_False){
         std::cout<<"output match failed"<<std::endl;
+        std::cout<<"projection on"<<std::endl;
         if (status == l_False){
             //projection on
             pMan->AllowProjection = true;
-            pLit[LitSize-1] = toLit(pMan->Projective);
-            std::cout<<pMan->Projective<<std::endl;
+            // pLit[LitSize-1] = toLit(pMan->Projective);
+            // std::cout<<pMan->Projective<<std::endl;
             // std::cout<<LitSize<<" "<<learnedAssumption.size()<<" "<<ClauseControl.size()<<" "<<pMan->AllowProjection<<std::endl;
             status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
         }
-        std::cout<<"projection on"<<std::endl;
+        std::cout<<"projection off"<<std::endl;
+
         if (status == l_False){
             bool endloop = Bmatch_OutputBacktrack(pMan, n, m);
+            learnedAssumption = pMan->LearnedAssumption;
+            ClauseControl = pMan->ClauseControl;
+
             vMatch temp;
             if (!endloop) return temp;
-            std::cout<<"backtrack end"<<std::endl;
             //projection off
             pMan->AllowProjection = false;
-            // std::cout<<LitSize<<" "<<learnedAssumption.size()<<" "<<ClauseControl.size()<<" "<<pMan->AllowProjection<<std::endl;
+            
             for(int i =0; i<learnedAssumption.size(); i++){
                 pLit[i] = learnedAssumption[i];
             }
+            // std::cout<<"clause control:";
             for(int i = 0; i<ClauseControl.size(); i++){
-                if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl.back(), 1);
+                // std::cout<<ClauseControl[i]<<" ";
+                if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl[i], 1);
                 else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
             }
-            pLit[LitSize-1] = toLitCond(pMan->Projective, 1);
+            std::cout<<std::endl;
+            // LitSize = ClauseControl.size()+learnedAssumption.size()+1;
+            // pLit[LitSize-1] = toLitCond(pMan->Projective, 1);
+            LitSize = ClauseControl.size()+learnedAssumption.size();
+            // std::cout<<"assumptions ";
+            // for(int i = 0;i<LitSize; i++){
+            //     std::cout<<pLit[i]<<" ";
+            // }
+            // std::cout<<std::endl;
             status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
         }
     }
 
+    std::cout<<"new match found\n";
     std::vector<int> new_match;
     if (fVerbose) { printf("       "); for (int j = 0; j < m; ++j) { printf("%c%-3s", ((j & 1) != 0) ? '~' : ' ', Abc_ObjName(Abc_NtkPo(pNtk1, j / 2))); }; printf("\n");  }
     for (int i = 0; i < n; ++i) {
@@ -367,310 +414,30 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     }
     
     // allow projection
-    pMan->AllowProjection = false;
-    pMan->Projective = n*m+1;
-    pLits[0] = toLit(n*m+1);//allow projection
-    for(int i = 0; i<n; i++){
-        for(int j = i+1; i<n; i++){
-            for(int k =0; k<m/2; k++){
-                pLits[1] = toLitCond(i*m+k*2, 1);
-                pLits[2] = toLitCond(j*m+k*2+1, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
+    // pMan->AllowProjection = false;
+    // pMan->Projective = n*m+1;
+    // pLits[0] = toLit(n*m+1);//allow projection
+    // for(int i = 0; i<n; i++){
+    //     for(int j = i+1; i<n; i++){
+    //         for(int k =0; k<m/2; k++){
+    //             pLits[1] = toLitCond(i*m+k*2, 1);
+    //             pLits[2] = toLitCond(j*m+k*2+1, 1);
+    //             sat_solver_addclause(pSolver, pLits, pLits+3);
 
-                pLits[1] = toLitCond(i*m+k*2+1, 1);
-                pLits[2] = toLitCond(j*m+k*2, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
+    //             pLits[1] = toLitCond(i*m+k*2+1, 1);
+    //             pLits[2] = toLitCond(j*m+k*2, 1);
+    //             sat_solver_addclause(pSolver, pLits, pLits+3);
 
-                pLits[1] = toLitCond(i*m+k*2, 1);
-                pLits[2] = toLitCond(j*m+k*2, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
+    //             pLits[1] = toLitCond(i*m+k*2, 1);
+    //             pLits[2] = toLitCond(j*m+k*2, 1);
+    //             sat_solver_addclause(pSolver, pLits, pLits+3);
 
-                pLits[1] = toLitCond(i*m+k*2+1, 1);
-                pLits[2] = toLitCond(j*m+k*2+1, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
-            }
-        }
-    }
-
-    //equal
-
-
-    ABC_FREE(pLits);
-    pMan->pOutputSolver = pSolver;
-
-}
-
-void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
-
-    std::vector<int> &LearnedLevel = pMan->LearnedLevel;
-    sat_solver *pSolver = pMan->pOutputSolver;  
-    std::vector<int> &LearnedAssumption = pMan->LearnedAssumption;
-    vMatch_Group &MO = pMan->MO;
-
-    if(status){
-        //add new assumption base on i level(c)
-        auto &MoBack=MO.back();
-        LearnedLevel.emplace_back(MoBack.size()+1);
-        for(auto &match:MoBack){
-            // sat_solver_push(pSolver, toLit(match));
-            
-            LearnedAssumption.emplace_back(toLit(match));
-        }
-
-        //add clause to constraint at lease one pair
-        Bmatch_New_Or(pMan, n, m);
-
-    }
-    else{
-        //add new assumptin base on i level(~c)
-        auto &MoBack=MO.back();
-        if(LearnedLevel.size() == 0) LearnedLevel.emplace_back(MoBack.size());
-        else LearnedLevel.back() += MoBack.size();
-
-        for(auto &match:MoBack){
-            LearnedAssumption.emplace_back(toLitCond(match, 1));
-        }
-        MO.pop_back();
-
-    }
-    pMan->pOutputSolver = pSolver;
-    pMan->LearnedLevel = LearnedLevel;
-    pMan->LearnedAssumption = LearnedAssumption;
-}
-
-bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m){
-    std::vector<int> LearnedLevel = pMan->LearnedLevel;
-    sat_solver *pSolver = pMan->pOutputSolver;
-    std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
-    vMatch_Group &MO = pMan->MO;
-
-    for(int i = 0; i < LearnedLevel.back(); i++){
-        LearnedAssumption.pop_back();
-    }
-    
-    LearnedLevel.pop_back();
-    if (LearnedLevel.size() == 0) LearnedLevel.emplace_back(1);
-    else LearnedLevel.back() += 1;
-    if (MO.size() != 0){
-        LearnedAssumption.emplace_back(toLitCond(MO.back()[0], 1));
-        MO.pop_back();
-        Bmatch_New_Or(pMan, n, m);
-    }
-    else{
-        printf("all possible path traced\n");
-        return false;
-    }
-    
-
-    
-
-    pMan->pOutputSolver = pSolver;
-    pMan->LearnedLevel = LearnedLevel;
-    pMan->LearnedAssumption = LearnedAssumption;
-    return true;
-    
-}
-
-void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
-    std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
-    sat_solver *pSolver = pMan->pOutputSolver;
-
-    int *pLits = ABC_ALLOC(int, n*m);
-    for(int i = 0; i<n; i++){
-        for(int j = 0; j<m; j++){
-            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), i*m+j) == LearnedAssumption.end()){
-                pLits[i*m+j] = toLit(i*m+j);
-            }
-        }
-    }
-    sat_solver_addvar(pSolver);
-    pLits[m*n-LearnedAssumption.size()] = toLit(sat_solver_nvars(pSolver));
-    pMan->ClauseControl.emplace_back(sat_solver_nvars(pSolver));
-    sat_solver_addclause(pSolver, pLits, pLits + m*n - LearnedAssumption.size() + 1);
-}
-
-vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose){
-    
-    vMatch MO_new(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
-    sat_solver *pSolver = pMan->pOutputSolver;
-    std::vector<int> learnedAssumption = pMan->LearnedAssumption;
-    std::vector<int> ClauseControl = pMan->ClauseControl;
-    pSolver->verbosity = 2;
-    int n = Abc_NtkPoNum(pNtk2);
-    int m = 2 * (Abc_NtkPoNum(pNtk1));
-    int *model = pSolver->model;
-    int LitSize = learnedAssumption.size()+ClauseControl.size()+1;
-    vMatch_Group &MO = pMan->MO;
-
-
-    //add assumption
-    int *pLit = ABC_ALLOC(int, learnedAssumption.size()+ClauseControl.size()+1);
-    for(int i =0; i<learnedAssumption.size(); i++){
-        pLit[i] = learnedAssumption[i];
-        // std::cout<<"assump"<<learnedAssumption[i]<<std::endl;
-    }
-    //clause control
-    for(int i = 0; i<ClauseControl.size(); i++){
-        if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl.back(), 1);
-        else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
-        // std::cout<<"clause"<<ClauseControl[i];
-    }
-    
-    // //projective
-    if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
-    else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
-
-
-    int status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
-    while(status == l_False){
-        std::cout<<"output match failed"<<std::endl;
-        if (status == l_False){
-            //projection on
-            pMan->AllowProjection = true;
-            pLit[LitSize-1] = toLit(pMan->Projective);
-            std::cout<<pMan->Projective<<std::endl;
-            // std::cout<<LitSize<<" "<<learnedAssumption.size()<<" "<<ClauseControl.size()<<" "<<pMan->AllowProjection<<std::endl;
-            status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
-        }
-        std::cout<<"projection on"<<std::endl;
-        if (status == l_False){
-            bool endloop = Bmatch_OutputBacktrack(pMan, n, m);
-            vMatch temp;
-            if (!endloop) return temp;
-            std::cout<<"backtrack end"<<std::endl;
-            //projection off
-            pMan->AllowProjection = false;
-            // std::cout<<LitSize<<" "<<learnedAssumption.size()<<" "<<ClauseControl.size()<<" "<<pMan->AllowProjection<<std::endl;
-            for(int i =0; i<learnedAssumption.size(); i++){
-                pLit[i] = learnedAssumption[i];
-            }
-            for(int i = 0; i<ClauseControl.size(); i++){
-                if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl.back(), 1);
-                else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
-            }
-            pLit[LitSize-1] = toLitCond(pMan->Projective, 1);
-            status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
-        }
-    }
-
-    std::vector<int> new_match;
-    if (fVerbose) { printf("       "); for (int j = 0; j < m; ++j) { printf("%c%-3s", ((j & 1) != 0) ? '~' : ' ', Abc_ObjName(Abc_NtkPo(pNtk1, j / 2))); }; printf("\n");  }
-    for (int i = 0; i < n; ++i) {
-        if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPo(pNtk2, i)));
-        for (int j = 0; j < m; ++j) {
-            if (fVerbose) printf(" %3d", model[i * m + j] == l_True);
-            if (model[i * m + j] == l_True) {
-                MO_new[j / 2].emplace_back(i, (int)((j & 1) != 0));
-
-                bool add = true;
-                for(int k=0; k<MO.size(); k++){
-                    if(std::find(MO[k].begin(), MO[k].end(), i*m+j) != MO[k].end()){
-                        add = false;
-                        break;
-                    }
-                }
-                
-                if (add) new_match.emplace_back(i*m+j);
-            }
-        }
-        if (fVerbose) printf("\n");
-    }
-    if (fVerbose) printf("\n");
-    MO.emplace_back(new_match);
-    if(fVerbose){
-        for(auto &level:MO){
-            printf("MO");
-            for(int j = 0;j<level.size(); j++){
-                printf(" %3d", level[j], " ");
-            }
-            printf("\n");
-        }
-    }
-
-    
-    pMan->MO = MO;
-    ABC_FREE(pLit);
-    return MO_new;
-
-}
-void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
-    sat_solver *pSolver = pMan->pOutputSolver;
-    if (pSolver) sat_solver_delete(pSolver);
-    pSolver = sat_solver_new();
-    pSolver->verbosity = 2;
-
-    int n = Abc_NtkPoNum(pNtk2);
-    int m = 2 * (Abc_NtkPoNum(pNtk1));
-    int *pLits = ABC_ALLOC(int, m*n);
-    
-    sat_solver_setnvars(pSolver, n * m + 1);
-    //at least one pair
-    for(int i = 0; i<n; i++){
-        for(int j = 0; j<m; j++){
-            pLits[i*m+j] = toLit(i*m+j);
-        }
-    }
-    sat_solver_addclause(pSolver, pLits, pLits + m*n);
-
-    //(c+d)<=1 ==> (~c+~d)
-    for(int i = 0; i<n; i++){
-        for(int j = 0; j<m; j++){
-            pLits[0] = toLitCond(i*m+j, 1);
-            for(int k = j+1; k<m; k++){
-                if (k != j){
-                    pLits[1] = toLitCond(i*m+k, 1);
-                    sat_solver_addclause(pSolver, pLits, pLits + 2);
-                }
-            }
-        }
-    }
-
-    //output group
-    vGroup vGroup = pMan->Groups;
-
-    for(int l = 0; l< vGroup.size(); l++){
-        auto Group_ntk1 = vGroup[l].first;
-        for(int k = l+1; k<vGroup.size(); k++){
-            auto Group_ntk2 = vGroup[k].second;
-            for(int i = 0;i<Group_ntk1.size(); i++){
-                for(int j = 0;j<Group_ntk2.size(); j++){
-                    //for output_ntk1_i and output_ntk2_j not in same group
-                    //add clause ~cij ~dij
-                    pLits[0] = toLitCond(Group_ntk1[i]*2 + m*Group_ntk2[j],1);
-                    sat_solver_addclause(pSolver, pLits, pLits + 1);
-                    pLits[0] = toLitCond(Group_ntk1[i]*2 + m*Group_ntk2[j] + 1,1);
-                    sat_solver_addclause(pSolver, pLits, pLits + 1);
-                }
-            }
-            
-        }
-    }
-    
-    // allow projection
-    pMan->AllowProjection = false;
-    pMan->Projective = n*m+1;
-    pLits[0] = toLit(n*m+1);//allow projection
-    for(int i = 0; i<n; i++){
-        for(int j = i+1; i<n; i++){
-            for(int k =0; k<m/2; k++){
-                pLits[1] = toLitCond(i*m+k*2, 1);
-                pLits[2] = toLitCond(j*m+k*2+1, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
-
-                pLits[1] = toLitCond(i*m+k*2+1, 1);
-                pLits[2] = toLitCond(j*m+k*2, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
-
-                pLits[1] = toLitCond(i*m+k*2, 1);
-                pLits[2] = toLitCond(j*m+k*2, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
-
-                pLits[1] = toLitCond(i*m+k*2+1, 1);
-                pLits[2] = toLitCond(j*m+k*2+1, 1);
-                sat_solver_addclause(pSolver, pLits, pLits+3);
-            }
-        }
-    }
+    //             pLits[1] = toLitCond(i*m+k*2+1, 1);
+    //             pLits[2] = toLitCond(j*m+k*2+1, 1);
+    //             sat_solver_addclause(pSolver, pLits, pLits+3);
+    //         }
+    //     }
+    // }
 
     //equal
 
@@ -679,6 +446,9 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     pMan->pOutputSolver = pSolver;
 
 }
+
+
+
 
 InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose) {
     vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
