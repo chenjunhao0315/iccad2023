@@ -17,6 +17,7 @@ void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
 void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -196,6 +197,24 @@ void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     PRINT_SYMM(pMan->vSymm2, pNtk2);
 
     #undef PRINT_SYMM
+}
+void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
+    #define PRINT_EQUAL(equal, pNtk)                                        \
+    do{                                                                     \
+        for (int i = 0; i < equal.size(); ++i) {                            \
+            Abc_Print(1, "(");                                              \
+            for(auto &k:equal[i]){                                          \
+                Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPo(pNtk, k)));       \
+            }                                                               \
+            Abc_Print(1, " )\n");                                           \
+        }                                                                   \
+    }while(0)                                                               \
+    
+    Abc_Print(1, "Equal information\n");
+    Abc_Print(1, "  Cir1:\n");
+    PRINT_EQUAL(pMan->oEqual1, pNtk1);
+    Abc_Print(1, "  Cir2:\n");
+    PRINT_EQUAL(pMan->oEqual2, pNtk2);
 }
 
 ABC_NAMESPACE_IMPL_END
