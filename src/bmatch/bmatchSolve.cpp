@@ -1,5 +1,6 @@
 #include "bmatch.hpp"
 #include <vector>
+#include <algorithm>
 
 #include "print.hpp"
 
@@ -73,27 +74,23 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
 
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
-    
 
     abctime clkTotal = Abc_Clock();
 
     vMatch MI, MO_new;
     // vMatch_Group MO;
     bool optimal = false;
-    while(!optimal){
+    while (!optimal) {
         //find new pair of output matching
         EcResult result;
-        MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 1);
+        MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
 
-        OUTPUT_MAPPING
         // MO_new = MO_test;
         // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
         if (MO_new.size() == 0) return;
         
         //input solve
-        printf("input solve start\n");
-
         Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
         ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
@@ -104,13 +101,12 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
             ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
             if (!ret) break;
-            auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, (pMan->mi <= 10));
+            auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
             if (Mapping.status == 0) break;
             MI = Mapping.MI;
 
             assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
             result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0);
-            // print("Miter Status:", (result.status == EQUIVALENT) ? "EQUIVALENT" : "NON-EQUIVALENT");
         }
 
         Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
@@ -128,18 +124,15 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             optimal = score == 2*Abc_NtkPoNum(pNtk2);
         } else {
             if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
-        else printf("Input Solver UNSAT Mapping is infeasible\n");
+            else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
             Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
-            
         }
         iter = 0;
         ret = 1;
-        
     }
 }
 
 void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
-
     std::vector<int> &LearnedLevel = pMan->LearnedLevel;
     sat_solver *pSolver = pMan->pOutputSolver;  
     std::vector<int> &LearnedAssumption = pMan->LearnedAssumption;
@@ -180,7 +173,7 @@ bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m){
     sat_solver *pSolver = pMan->pOutputSolver;
     std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
     vMatch_Group &MO = pMan->MO;
-    std::cout<<"start backtrack ";
+    std::cout<<"start backtrack\n";
     for(int i = 0; i < LearnedLevel.back(); i++){
         LearnedAssumption.pop_back();
     }
@@ -198,15 +191,11 @@ bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m){
         printf("all possible path traced\n");
         return false;
     }
-    
-
-    
 
     pMan->pOutputSolver = pSolver;
     pMan->LearnedLevel = LearnedLevel;
     pMan->LearnedAssumption = LearnedAssumption;
     return true;
-    
 }
 
 void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
@@ -240,7 +229,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     sat_solver *pSolver = pMan->pOutputSolver;
     std::vector<int> learnedAssumption = pMan->LearnedAssumption;
     std::vector<int> ClauseControl = pMan->ClauseControl;
-    pSolver->verbosity = 2;
+    //pSolver->verbosity = 2;
     int n = Abc_NtkPoNum(pNtk2);
     int m = 2 * (Abc_NtkPoNum(pNtk1));
     int *model = pSolver->model;
@@ -248,9 +237,8 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     // int LitSize = ClauseControl.size()+learnedAssumption.size();
     vMatch_Group &MO = pMan->MO;
 
-
     //add assumption
-    int *pLit = ABC_ALLOC(int, learnedAssumption.size()+ClauseControl.size()+1);
+    int *pLit = ABC_ALLOC(int, learnedAssumption.size()+ClauseControl.size()+pMan->LearnedLevel.size());
     for(int i =0; i<learnedAssumption.size(); i++){
         pLit[i] = learnedAssumption[i];
         // std::cout<<"assump"<<learnedAssumption[i]<<" ";
@@ -268,16 +256,14 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
     else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
     // std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<" "<<pMan->AllowProjection<<std::endl;
-   
     
-
-    std::cout<<"output solve start\n";
+    if (fVerbose) std::cout<<"output solve start\n";
     int status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
     while(status == l_False){
-        std::cout<<"output match failed"<<std::endl;
+        if (fVerbose) std::cout<<"output match failed"<<std::endl;
         
-        if (status == l_False & !pMan->AllowProjection){
-            std::cout<<"projection on"<<std::endl;
+        if (status == l_False && !pMan->AllowProjection){
+            if (fVerbose) std::cout<<"projection on"<<std::endl;
             //projection on
             pMan->AllowProjection = true;
             pLit[LitSize-1] = toLit(pMan->Projective);
@@ -286,7 +272,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
         // std::cout<<status<<std::endl;
 
         if (status == l_False){
-            std::cout<<"projection off"<<std::endl;
+            if (fVerbose) std::cout<<"projection off"<<std::endl;
             bool endloop = Bmatch_OutputBacktrack(pMan, n, m);
             learnedAssumption = pMan->LearnedAssumption;
             ClauseControl = pMan->ClauseControl;
@@ -319,7 +305,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
         }
     }
 
-    std::cout<<"new match found"<<std::endl;
+    if (fVerbose) std::cout<<"new match found"<<std::endl;
     std::vector<int> new_match;
     if (fVerbose) { printf("       "); for (int j = 0; j < m; ++j) { printf("%c%-3s", ((j & 1) != 0) ? '~' : ' ', Abc_ObjName(Abc_NtkPo(pNtk1, j / 2))); }; printf("\n");  }
     for (int i = 0; i < n; ++i) {
@@ -347,12 +333,11 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
         for(auto &level:MO){
             printf("MO");
             for(int j = 0;j<level.size(); j++){
-                printf(" %3d", level[j], " ");
+                printf(" %3d", level[j]);
             }
             printf("\n");
         }
     }
-    
     
     pMan->MO = MO;
     ABC_FREE(pLit);
@@ -363,7 +348,7 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     sat_solver *pSolver = pMan->pOutputSolver;
     if (pSolver) sat_solver_delete(pSolver);
     pSolver = sat_solver_new();
-    pSolver->verbosity = 2;
+    //pSolver->verbosity = 2;
 
     int n = Abc_NtkPoNum(pNtk2);
     int m = 2 * (Abc_NtkPoNum(pNtk1));
