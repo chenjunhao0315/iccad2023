@@ -23,6 +23,7 @@ void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
 void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
 void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
+void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat);
 void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
@@ -54,11 +55,22 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
 
+    // calculate unateness
+    Bmatch_CalUnate(pNtk1, pMan->unateMat1);
+    Bmatch_CalUnate(pNtk2, pMan->unateMat2);
+
     //equality
     Bmatch_CalEqual(pMan->oEqual1, pNtk1);
     Bmatch_CalEqual(pMan->oEqual2, pNtk2);
 
     // Sensitivity or others
+}
+
+void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat) {
+    Bmatch_RandomSimUnate(pNtk, unateMat, 10);
+    for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
+        Bmatch_SatUnate(pNtk, unateMat, i, 1);
+    }
 }
 
 void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, std::set<int> &sRedund) {

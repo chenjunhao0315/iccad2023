@@ -17,6 +17,7 @@ void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
 void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
@@ -197,6 +198,28 @@ void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     PRINT_SYMM(pMan->vSymm2, pNtk2);
 
     #undef PRINT_SYMM
+}
+
+void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    #define PRINT_UNATE(unateMat, pNtk)                     \
+    do {                                                    \
+        printf("    "); for (int k = 0; k < Abc_NtkPiNum(pNtk); ++k) printf(" %3s", Abc_ObjName(Abc_NtkPi(pNtk, k))); printf("\n");   \
+        for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {      \
+            printf("%3s:", Abc_ObjName(Abc_NtkPo(pNtk, i)));\
+            for (int j = 0; j < Abc_NtkPiNum(pNtk); ++j) {  \
+                printf("   %c", unateMat[i][j] == 1 ? 'p' : unateMat[i][j] == 2 ? 'n' : unateMat[i][j] == 3 ? '.' : ' ');  \
+            }                                               \
+            printf("\n");                                   \
+        }                                                   \
+    } while (0)
+
+    printf("Unate Information:\n");
+    printf("Cir1:\n");
+    PRINT_UNATE(pMan->unateMat1, pNtk1);
+    printf("Cir2:\n");
+    PRINT_UNATE(pMan->unateMat2, pNtk2);
+
+    #undef PRINT_UNATE
 }
 void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
     #define PRINT_EQUAL(equal, pNtk)                                        \
