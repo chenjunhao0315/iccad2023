@@ -249,8 +249,8 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     int n = Abc_NtkPoNum(pNtk2);
     int m = 2 * (Abc_NtkPoNum(pNtk1));
     int *model = pSolver->model;
-    // int LitSize = learnedAssumption.size()+ClauseControl.size()+1;
-    int LitSize = ClauseControl.size()+learnedAssumption.size();
+    int LitSize = learnedAssumption.size()+ClauseControl.size()+1;
+    // int LitSize = ClauseControl.size()+learnedAssumption.size();
     vMatch_Group &MO = pMan->MO;
 
 
@@ -262,32 +262,35 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     }
     //clause control
     for(int i = 0; i<ClauseControl.size(); i++){
-        if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl.back(), 1);
+        if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl[i], 1);
         else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
     }
     
     // //projective
-    // if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
-    // else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
-    // std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<std::endl;
+    if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
+    else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
+    std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<" "<<pMan->AllowProjection<<std::endl;
+   
     
 
     std::cout<<"output solve start\n";
     int status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
     while(status == l_False){
         std::cout<<"output match failed"<<std::endl;
-        std::cout<<"projection on"<<std::endl;
-        if (status == l_False){
+        
+        if (status == l_False & !pMan->AllowProjection){
+            std::cout<<"projection on"<<std::endl;
             //projection on
             pMan->AllowProjection = true;
-            // pLit[LitSize-1] = toLit(pMan->Projective);
+            pLit[LitSize-1] = toLit(pMan->Projective);
             // std::cout<<pMan->Projective<<std::endl;
             // std::cout<<LitSize<<" "<<learnedAssumption.size()<<" "<<ClauseControl.size()<<" "<<pMan->AllowProjection<<std::endl;
             status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
         }
-        std::cout<<"projection off"<<std::endl;
+        
 
         if (status == l_False){
+            std::cout<<"projection off"<<std::endl;
             bool endloop = Bmatch_OutputBacktrack(pMan, n, m);
             learnedAssumption = pMan->LearnedAssumption;
             ClauseControl = pMan->ClauseControl;
@@ -306,10 +309,10 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
                 if (i == ClauseControl.size()-1) pLit[learnedAssumption.size()+i] = toLitCond(ClauseControl[i], 1);
                 else pLit[i+learnedAssumption.size()] = toLit(ClauseControl[i]);
             }
-            std::cout<<std::endl;
-            // LitSize = ClauseControl.size()+learnedAssumption.size()+1;
-            // pLit[LitSize-1] = toLitCond(pMan->Projective, 1);
-            LitSize = ClauseControl.size()+learnedAssumption.size();
+            // std::cout<<std::endl;
+            LitSize = ClauseControl.size()+learnedAssumption.size()+1;
+            pLit[LitSize-1] = toLitCond(pMan->Projective, 1);
+            // LitSize = ClauseControl.size()+learnedAssumption.size();
             // std::cout<<"assumptions ";
             // for(int i = 0;i<LitSize; i++){
             //     std::cout<<pLit[i]<<" ";
@@ -414,30 +417,31 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     }
     
     // allow projection
-    // pMan->AllowProjection = false;
-    // pMan->Projective = n*m+1;
-    // pLits[0] = toLit(n*m+1);//allow projection
-    // for(int i = 0; i<n; i++){
-    //     for(int j = i+1; i<n; i++){
-    //         for(int k =0; k<m/2; k++){
-    //             pLits[1] = toLitCond(i*m+k*2, 1);
-    //             pLits[2] = toLitCond(j*m+k*2+1, 1);
-    //             sat_solver_addclause(pSolver, pLits, pLits+3);
+    pMan->AllowProjection = false;
+    pMan->Projective = n*m;
+    pLits[0] = toLit(n*m);//allow projection
+    for(int i = 0; i<n; i++){
+        for(int j = i+1; j<n; j++){
+            for(int k = 0; k<m/2; k++){
+                pLits[1] = toLitCond(i*m+k*2, 1);
+                pLits[2] = toLitCond(j*m+k*2+1, 1);
+                sat_solver_addclause(pSolver, pLits, pLits+3);
+                // std::cout<<i*m+k*2<<" "<<j*m+k*2+1<<std::endl;
 
-    //             pLits[1] = toLitCond(i*m+k*2+1, 1);
-    //             pLits[2] = toLitCond(j*m+k*2, 1);
-    //             sat_solver_addclause(pSolver, pLits, pLits+3);
+                pLits[1] = toLitCond(i*m+k*2+1, 1);
+                pLits[2] = toLitCond(j*m+k*2, 1);
+                sat_solver_addclause(pSolver, pLits, pLits+3);
 
-    //             pLits[1] = toLitCond(i*m+k*2, 1);
-    //             pLits[2] = toLitCond(j*m+k*2, 1);
-    //             sat_solver_addclause(pSolver, pLits, pLits+3);
+                pLits[1] = toLitCond(i*m+k*2, 1);
+                pLits[2] = toLitCond(j*m+k*2, 1);
+                sat_solver_addclause(pSolver, pLits, pLits+3);
 
-    //             pLits[1] = toLitCond(i*m+k*2+1, 1);
-    //             pLits[2] = toLitCond(j*m+k*2+1, 1);
-    //             sat_solver_addclause(pSolver, pLits, pLits+3);
-    //         }
-    //     }
-    // }
+                pLits[1] = toLitCond(i*m+k*2+1, 1);
+                pLits[2] = toLitCond(j*m+k*2+1, 1);
+                sat_solver_addclause(pSolver, pLits, pLits+3);
+            }
+        }
+    }
 
     //equal
 
