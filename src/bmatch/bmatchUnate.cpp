@@ -200,7 +200,7 @@ sat_solver *Bmatch_UnateCheckerSatSolver(Abc_Ntk_t *pNtk, int Po, int *inputs, i
     if (!addClause(pSolver, vLits))
         return NULL;
 
-    // Vec_IntFree(vLits);
+    Vec_IntFree(vLits);
     Abc_NtkDelete(pChecker);
     ABC_FREE(inputsObj);
     ABC_FREE(inputControlsObj);
