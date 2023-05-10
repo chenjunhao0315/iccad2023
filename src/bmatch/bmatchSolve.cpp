@@ -267,7 +267,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     // //projective
     if (pMan->AllowProjection) pLit[learnedAssumption.size()+ClauseControl.size()] = toLit(pMan->Projective);
     else pLit[learnedAssumption.size()+ClauseControl.size()] = toLitCond(pMan->Projective, 1);
-    std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<" "<<pMan->AllowProjection<<std::endl;
+    // std::cout<<pLit[learnedAssumption.size()+ClauseControl.size()]<<" "<<pMan->AllowProjection<<std::endl;
    
     
 
@@ -283,7 +283,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
             pLit[LitSize-1] = toLit(pMan->Projective);
             status = sat_solver_solve(pSolver, pLit, pLit+LitSize, 0, 0, 0, 0);
         }
-        std::cout<<status<<std::endl;
+        // std::cout<<status<<std::endl;
 
         if (status == l_False){
             std::cout<<"projection off"<<std::endl;
