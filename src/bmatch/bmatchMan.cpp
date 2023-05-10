@@ -15,11 +15,15 @@ void Bmatch_ManStop(Bmatch_Man_t* p);
 
 Bmatch_Man_t* Bmatch_ManStart() {
     Bmatch_Man_t *p = new Bmatch_Man_t;
+    p->pInputSolver = NULL;
+    p->pOutputSolver = NULL;
 
     return p;
 }
 
 void Bmatch_ManStop(Bmatch_Man_t* p) {
+    if (p->pInputSolver) sat_solver_delete(p->pInputSolver);
+    if (p->pOutputSolver) sat_solver_delete(p->pOutputSolver);
     delete p;
 }
 

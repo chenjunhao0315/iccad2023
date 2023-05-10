@@ -3,8 +3,6 @@
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
 
-#include "print.hpp"
-
 ABC_NAMESPACE_IMPL_START
 
 #define AIG_OBJ_NAME2INDEX(TYPE, pObj)
@@ -19,10 +17,14 @@ LINEAR_SEARCH_FUNC(Po)
 #undef LINEAR_SEARCH_FUNC
 
 void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm);
+void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm, vSymmPair &vSymmPair);
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
+void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat);
+void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 #ifdef __cplusplus
@@ -37,21 +39,128 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_BusNameMaping(pMan, pNtk1, pNtk2);
 
     // Functional support and Symmetry information
-    Bmatch_CalSuppAndSymm(pNtk1, pMan->iFuncSupp1, pMan->oFuncSupp1, pMan->vSymm1);
-    Bmatch_CalSuppAndSymm(pNtk2, pMan->iFuncSupp2, pMan->oFuncSupp2, pMan->vSymm2);
+    printf("Calculate Functional support and Symm information...\n");
+    Bmatch_CalSuppAndSymm(pNtk1, pMan->iFuncSupp1, pMan->oFuncSupp1, pMan->vSymm1, pMan->vSymmPair1);
+    Bmatch_CalSuppAndSymm(pNtk2, pMan->iFuncSupp2, pMan->oFuncSupp2, pMan->vSymm2, pMan->vSymmPair2);
 
     // Structural support information
+    printf("Calculate Structural support information...\n");
     Bmatch_CalStructSupp(pMan->oStrSupp1, pNtk1);
     Bmatch_CalStructSupp(pMan->oStrSupp2, pNtk2);
 
     // Redundant support information
+    printf("Calculate Redundant Information...\n");
     Bmatch_CalRedundSupp(pMan->oRedundSupp1, pMan->oStrSupp1, pMan->oFuncSupp1);
     Bmatch_CalRedundSupp(pMan->oRedundSupp2, pMan->oStrSupp2, pMan->oFuncSupp2);
+    Bmatch_CalCirRedund(pNtk1, pMan->oStrSupp1, pMan->sRedund1);
+    Bmatch_CalCirRedund(pNtk2, pMan->oStrSupp2, pMan->sRedund2);
 
     Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
 
+    // calculate unateness
+    printf("Calculate Unateness Informatin...\n");
+    Bmatch_CalUnate(pNtk1, pMan->unateMat1);
+    Bmatch_CalUnate(pNtk2, pMan->unateMat2);
+
+    //equality
+    printf("Calculate Equality Information...\n");
+    Bmatch_CalEqual(pMan->oEqual1, pNtk1);
+    Bmatch_CalEqual(pMan->oEqual2, pNtk2);
+
     // Sensitivity or others
+}
+
+void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat) {
+    Bmatch_RandomSimUnate(pNtk, unateMat, 10);
+    for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
+        Bmatch_SatUnate(pNtk, unateMat, i, 1);
+    }
+}
+
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, std::set<int> &sRedund) {
+    sRedund.clear();
+    for (int i = 0; i < Abc_NtkPiNum(pNtk); ++i)
+        sRedund.insert(i);
+
+    for (auto &s : oStrSupp)
+        for (auto &p : s)
+            sRedund.erase(p);
+}
+
+void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund) {
+    if (MI.empty()) return;
+
+    int i, start;
+    char Buffer[100];
+    Abc_Ntk_t *pNtkNP;
+    Abc_Obj_t *pObj, *pObjNew;
+    Vec_Ptr_t *vSuppFun;
+
+    pNtkNP = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
+    sprintf(Buffer, "%s_%s_mapper", Abc_NtkName(pNtk1), Abc_NtkName(pNtk2));
+    Abc_NtkSetName(pNtkNP, Extra_UtilStrsav(Buffer));
+
+    Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkNP);
+    Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkNP);
+
+    Abc_NtkForEachCi(pNtk1, pObj, i) {
+        start = 0;
+        memset(Buffer, 0, sizeof(Buffer));
+        pObjNew = Abc_NtkCreatePi(pNtkNP);
+
+        for (auto &p : MI[i]) {
+            pObj = Abc_NtkCi(pNtk2, p.var());
+            pObj->pCopy = (p.sign()) ? Abc_ObjNot(pObjNew) : pObjNew;
+            if (p.sign()) strcat(Buffer, "~");
+            strcat(Buffer, Abc_ObjName(pObj));
+            if (start++ != MI[i].size() - 1) strcat(Buffer, "_");
+        }
+        if (strlen(Buffer) == 0) sprintf(Buffer, "non_map_%d", i);
+        Abc_ObjAssignName(pObjNew, Buffer, NULL);
+    }
+    // Test for const input (not really sure if it works or not)
+    for (auto &p : MI.back()) {
+        pObj = Abc_NtkCi(pNtk2, p.var());
+        pObj->pCopy = (p.sign()) ? Abc_ObjNot(Abc_AigConst1(pNtkNP)) : Abc_AigConst1(pNtkNP);
+    }
+
+    Abc_NtkForEachPo(pNtk2, pObj, i) {
+        pObjNew = Abc_NtkCreatePo(pNtkNP);
+        Abc_ObjAssignName(pObjNew, "np", Abc_ObjName(pObjNew));
+    }
+
+    assert(Abc_NtkIsDfsOrdered(pNtkNP));
+    Abc_AigForEachAnd(pNtk2, pObj, i)
+        pObj->pCopy = Abc_AigAnd((Abc_Aig_t *)pNtkNP->pManFunc, Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj));
+
+    Abc_NtkForEachPo(pNtk2, pObj, i) {
+        Abc_ObjAddFanin(Abc_NtkPo(pNtkNP, i), Abc_ObjChild0Copy(pObj));
+    }
+
+    Abc_AigCleanup((Abc_Aig_t *)pNtkNP->pManFunc);
+
+    if (!Abc_NtkCheck(pNtkNP)) {
+        printf("Abc_NtkNP: The network check has failed.\n");
+        Abc_NtkDelete(pNtkNP);
+    }
+
+    sRedund.clear();
+    for (int i = 0; i < Abc_NtkPiNum(pNtkNP); ++i)
+        sRedund.insert(i);
+
+    vSuppFun = Sim_ComputeFunSupp(pNtkNP, 0);
+    for (int i = 0; i < Abc_NtkPoNum(pNtkNP); ++i) {
+        // functional support
+        for (int j = 0; j < Abc_NtkPiNum(pNtkNP); ++j) {
+            if (Sim_SuppFunHasVar(vSuppFun, i, j)) {
+                sRedund.erase(j);
+            }
+        }
+    }
+
+    Abc_NtkDelete(pNtkNP);
+    Vec_PtrFree(vSuppFun);
 }
 
 void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
@@ -84,7 +193,7 @@ void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     pMan->sBIO2.clear();
 }
 
-void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm) {
+void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm, vSymmPair &vSymmPair) {
     Sym_Man_t *pSymMan;
 
     srand(0xABC);
@@ -107,7 +216,7 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         // check disjointness
         assert(Sim_UtilMatrsAreDisjoint(pSymMan));
         // count the number of pairs
-        Sim_UtilCountPairsAll(pSymMan);
+        // Sim_UtilCountPairsAll(pSymMan);
     }
 
     // detect symmetries using SAT
@@ -127,11 +236,11 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         // check disjointness
         assert(Sim_UtilMatrsAreDisjoint(pSymMan));
         // count the number of pairs
-        Sim_UtilCountPairsAll(pSymMan);
+        // Sim_UtilCountPairsAll(pSymMan);
     }
 
     // count the number of pairs
-    Sim_UtilCountPairsAll(pSymMan);
+    // Sim_UtilCountPairsAll(pSymMan);
 
     auto insert_symm = [](std::vector<std::set<int> > &symm_groups, int i, int j) -> void {
         for (auto &g : symm_groups) {
@@ -169,6 +278,32 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
         oFuncSupp.emplace_back(std::move(ofuncSupp));
     }
 
+    for (auto &symm : vSymm) {
+        for (auto &s : symm) {
+            int supp_check = 1;
+            std::set<int> supp_prev;
+            for (auto &p : s) {
+                auto &supp = iFuncSupp[p];
+                if (supp_prev.empty()) {
+                    supp_prev = supp;
+                } else if (supp_prev == supp || supp.empty()) {
+                    
+                } else {
+                    supp_check = 0;
+                    break;
+                }
+            }
+            if (supp_check == 1) {
+                std::vector<int> symm_set(s.begin(), s.end());
+                for (int i = 0; i < symm_set.size() - 1; ++i) {
+                    for (int j = i + 1; j < symm_set.size(); ++j) {
+                        vSymmPair.emplace_back(symm_set[i], symm_set[j]);
+                    }
+                }
+            }
+        }
+    }
+
     Sym_ManStop(pSymMan);
 }
 
@@ -180,6 +315,36 @@ void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp)
     }
 
     std::sort(vSuppInfo.begin(), vSuppInfo.end(), [](std::tuple<int, int, int> const &t1, std::tuple<int, int, int> const &t2) { return std::get<SUPPFUNC>(t1) < std::get<SUPPFUNC>(t2); });
+}
+
+void Bmatch_CalEqual(vEqual &oEqual, Abc_Ntk_t *pNtk){
+    int i, j, index1, index2;
+    
+    Abc_Obj_t *pNode1, *pNode2;
+    std::vector<int> temp;
+    std::vector<int> cal;
+    Abc_NtkForEachPo( pNtk, pNode1, i ){
+        index1 = Bmatch_LinearSearchPoName2Index(pNtk, pNode1);
+        if(std::find(cal.begin(), cal.end(), index1) != cal.end()) continue;
+        
+        temp.emplace_back(index1);
+        bool add = false;
+        Abc_NtkForEachPo(pNtk, pNode2, j){
+            if(pNode1 != pNode2){
+                if((Abc_ObjFanin0(pNode1) == Abc_ObjFanin0(pNode2)) & (pNode1->fCompl0 == pNode2->fCompl0) \
+                & (Abc_ObjFanin1(pNode1) == Abc_ObjFanin1(pNode2)) & (pNode1->fCompl1 == pNode2->fCompl1) ){
+                    add = true;
+                    index2 = Bmatch_LinearSearchPoName2Index(pNtk, pNode2);
+                    temp.emplace_back(index2);
+                    cal.emplace_back(index2);
+            }
+            }
+        }
+
+        if (add) oEqual.emplace_back(temp);
+        if (add) cal.emplace_back(index1);
+        temp.clear();
+    }
 }
 
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk) {
