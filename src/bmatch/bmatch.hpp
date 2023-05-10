@@ -97,9 +97,6 @@ public:
     Mat unateMat1;
     Mat unateMat2;
 
-    // unateness
-    Mat unateMat1;
-    Mat unateMat2;
 
     // input solver, output solver
     sat_solver *pInputSolver;
