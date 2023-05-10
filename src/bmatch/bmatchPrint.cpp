@@ -14,9 +14,11 @@ void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -72,7 +74,7 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
     Abc_Print(1, "  MI:");
     for (int i = 0; i < MI.size(); ++i) {
         for (auto &p : MI[i]) {
-            if (i != MI.size() - 1) Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPi(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
+            if (i != MI.size() - 1) Abc_Print(1, " (%c%s, %s)",p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPi(pNtk1, i)), Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
             else Abc_Print(1, " (%s, %s)", p.sign() ? "CONST0" : "CONST1", Abc_ObjName(Abc_NtkPi(pNtk2, p.var())));
         }
     }
@@ -80,7 +82,7 @@ void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch
     for (int i = 0; i < MO.size(); ++i) {
         score += (int)!MO[i].empty() + MO[i].size();
         for (auto &p : MO[i]) {
-            Abc_Print(1, " (%s, %c%s)", Abc_ObjName(Abc_NtkPo(pNtk1, i)), p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPo(pNtk2, p.var())));
+            Abc_Print(1, " (%c%s, %s)",p.sign() ? '~' : '\0', Abc_ObjName(Abc_NtkPo(pNtk1, i)), Abc_ObjName(Abc_NtkPo(pNtk2, p.var())));
         }
     }
     Abc_Print(1, "\n  Score: %d\n", score);
@@ -117,7 +119,7 @@ void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
     #undef BUS_PRINT
 }
 
-void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     int i;
     Abc_Obj_t *pObj;
     
@@ -196,6 +198,46 @@ void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     PRINT_SYMM(pMan->vSymm2, pNtk2);
 
     #undef PRINT_SYMM
+}
+
+void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    #define PRINT_UNATE(unateMat, pNtk)                     \
+    do {                                                    \
+        printf("    "); for (int k = 0; k < Abc_NtkPiNum(pNtk); ++k) printf(" %3s", Abc_ObjName(Abc_NtkPi(pNtk, k))); printf("\n");   \
+        for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {      \
+            printf("%3s:", Abc_ObjName(Abc_NtkPo(pNtk, i)));\
+            for (int j = 0; j < Abc_NtkPiNum(pNtk); ++j) {  \
+                printf("   %c", unateMat[i][j] == 1 ? 'p' : unateMat[i][j] == 2 ? 'n' : unateMat[i][j] == 3 ? '.' : ' ');  \
+            }                                               \
+            printf("\n");                                   \
+        }                                                   \
+    } while (0)
+
+    printf("Unate Information:\n");
+    printf("Cir1:\n");
+    PRINT_UNATE(pMan->unateMat1, pNtk1);
+    printf("Cir2:\n");
+    PRINT_UNATE(pMan->unateMat2, pNtk2);
+
+    #undef PRINT_UNATE
+}
+void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
+    #define PRINT_EQUAL(equal, pNtk)                                        \
+    do{                                                                     \
+        for (int i = 0; i < equal.size(); ++i) {                            \
+            Abc_Print(1, "(");                                              \
+            for(auto &k:equal[i]){                                          \
+                Abc_Print(1, " %s", Abc_ObjName(Abc_NtkPo(pNtk, k)));       \
+            }                                                               \
+            Abc_Print(1, " )\n");                                           \
+        }                                                                   \
+    }while(0)                                                               \
+    
+    Abc_Print(1, "Equal information\n");
+    Abc_Print(1, "  Cir1:\n");
+    PRINT_EQUAL(pMan->oEqual1, pNtk1);
+    Abc_Print(1, "  Cir2:\n");
+    PRINT_EQUAL(pMan->oEqual2, pNtk2);
 }
 
 ABC_NAMESPACE_IMPL_END

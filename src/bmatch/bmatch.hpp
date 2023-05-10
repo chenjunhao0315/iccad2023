@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/abc/abc.h"
+#include "sat/bsat/satSolver.h"
 
 #define VERBOSE_MASK        (1 << 0)
 #define VERBOSE_DETAIL_MASK (1 << 1)
@@ -16,11 +17,17 @@
 extern "C" {
 #endif
 
+#define S_ONE (~0)
+#define S_ZERO (0)
+
 typedef std::vector<std::pair<std::vector<int>, std::vector<int> > > vGroup;
 typedef std::vector<std::vector<std::string> > vsBus;
 typedef std::vector<std::vector<int> > vBus;
 typedef std::vector<std::vector<std::set<int> > > vSymm;
+typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
+typedef std::vector<std::vector<int> > Mat;
+typedef std::vector<std::vector<int>> vEqual;
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
 typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
@@ -28,19 +35,17 @@ typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
 struct Literal {
     int Var;
 
-    Literal() : Var(-4) {}
-    Literal(int Var, int Sign = false) : Var(Var * 2 + (int)Sign) {}
+    Literal() : Var(-1) {}
+    Literal(int Var, bool Sign = false) : Var(Var * 2 + (int)Sign) {}
     
     bool     sign()      const { return Var & 1; }
     int      var()       const { return Var >> 1; }
-    bool     isConst()   const { return Var < 0; }
-    bool     isUndef()   const { return Var == -4; }
+    bool     isUndef()   const { return Var == -1; }
+    operator int()       const { return Var; }
 };
 
-const Literal CONST1 = Literal(-1, 0);
-const Literal CONST0 = Literal(-1, -1);
-
 typedef std::vector<std::vector<Literal> > vMatch;
+typedef std::vector<std::vector<int>>  vMatch_Group;
 
 class Bmatch_Man_t {
 public:
@@ -60,6 +65,13 @@ public:
     vSupp iFuncSupp1, oFuncSupp1;
     vSupp iFuncSupp2, oFuncSupp2;
 
+    //group information
+    vGroup Groups;
+
+    //equal group
+    vEqual oEqual1;
+    vEqual oEqual2;
+
     // structrual support information
     vSupp oStrSupp1;
     vSupp oStrSupp2;
@@ -67,15 +79,38 @@ public:
     // redundant support information
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
+    std::set<int> sRedund1;
+    std::set<int> sRedund2;
 
     // symmetry group
     vSymm vSymm1;
     vSymm vSymm2;
+    vSymmPair vSymmPair1;
+    vSymmPair vSymmPair2;
 
     // functional support information
     // tuple<PO, suppFunc, strFunc>
     vSuppInfo vSuppInfo1;
     vSuppInfo vSuppInfo2;
+
+    // unateness
+    Mat unateMat1;
+    Mat unateMat2;
+
+
+    // input solver, output solver
+    sat_solver *pInputSolver;
+    sat_solver *pOutputSolver;
+    int ni, mi;
+    int no, mo;
+
+    //learned clause level
+    std::vector<int> LearnedLevel;
+    std::vector<int> LearnedAssumption;
+    int Projective;
+    bool AllowProjection;
+    std::vector<int> ClauseControl;
+    vMatch_Group MO;
 };
 
 enum {
@@ -83,7 +118,24 @@ enum {
     RESOURCE_LIMIT,
     PROVE_ERROR,
     EQUIVALENT,
-    NON_EQUIVALENT
+    NON_EQUIVALENT,
+    UNDEF
+};
+
+struct EcResult {
+    EcResult() : status(UNDEF), model(NULL) {}
+    EcResult(int status, int *model) : status(status), model(model) {}
+
+    int status;
+    int *model;
+};
+
+struct InputMapping {
+    InputMapping() : status(0) {}
+    InputMapping(int status, vMatch MI) : status(status), MI(MI) {}
+
+    int status;
+    vMatch MI;
 };
 
 // bmatchMan.cpp
@@ -94,14 +146,20 @@ extern void Bmatch_ManStop(Bmatch_Man_t* p);
 extern void Bmatch_ParseInput(Bmatch_Man_t *pMan, char *filename);
 extern int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **ppNtk2);
 
+// bmatchUnate.cpp
+extern void Bmatch_RandomSimUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int iter);
+extern void Bmatch_SatUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int Po, int iter);
+
 // bmatchFunc.cpp
+extern void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+extern void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchSolve.cpp
 extern void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchEc.cpp
-extern int Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
 
 // bmatchMiter.cpp
 extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
@@ -117,9 +175,11 @@ extern void Bmatch_NtkPrintIO(Abc_Ntk_t *pNtk);
 extern void Bmatch_PrintOutputGroup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vGroup &group);
 extern void Bmatch_PrintMatching(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch& MO);
 extern void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-extern void Bmatch_PrintInputSense(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintInputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
