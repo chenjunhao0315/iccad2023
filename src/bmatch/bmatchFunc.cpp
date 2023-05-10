@@ -39,14 +39,17 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_BusNameMaping(pMan, pNtk1, pNtk2);
 
     // Functional support and Symmetry information
+    printf("Calculate Functional support and Symm information...\n");
     Bmatch_CalSuppAndSymm(pNtk1, pMan->iFuncSupp1, pMan->oFuncSupp1, pMan->vSymm1, pMan->vSymmPair1);
     Bmatch_CalSuppAndSymm(pNtk2, pMan->iFuncSupp2, pMan->oFuncSupp2, pMan->vSymm2, pMan->vSymmPair2);
 
     // Structural support information
+    printf("Calculate Structural support information...\n");
     Bmatch_CalStructSupp(pMan->oStrSupp1, pNtk1);
     Bmatch_CalStructSupp(pMan->oStrSupp2, pNtk2);
 
     // Redundant support information
+    printf("Calculate Redundant Information...\n");
     Bmatch_CalRedundSupp(pMan->oRedundSupp1, pMan->oStrSupp1, pMan->oFuncSupp1);
     Bmatch_CalRedundSupp(pMan->oRedundSupp2, pMan->oStrSupp2, pMan->oFuncSupp2);
     Bmatch_CalCirRedund(pNtk1, pMan->oStrSupp1, pMan->sRedund1);
@@ -56,10 +59,12 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
 
     // calculate unateness
+    printf("Calculate Unateness Informatin...\n");
     Bmatch_CalUnate(pNtk1, pMan->unateMat1);
     Bmatch_CalUnate(pNtk2, pMan->unateMat2);
 
     //equality
+    printf("Calculate Equality Information...\n");
     Bmatch_CalEqual(pMan->oEqual1, pNtk1);
     Bmatch_CalEqual(pMan->oEqual2, pNtk2);
 
