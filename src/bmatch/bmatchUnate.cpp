@@ -21,9 +21,24 @@ void Bmatch_SatUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int Po, int iter);
 sat_solver *Bmatch_UnateCheckerSatSolver(Abc_Ntk_t *pNtk, int Po, int *inputs, int *inputControls, int *outputControl);
 Abc_Ntk_t *Bmatch_UnateChecker(Abc_Ntk_t *pNtk, int Po, Abc_Obj_t **inputs, Abc_Obj_t **inputControls, Abc_Obj_t **outputContorls);
 
+void Bmatch_GetUnateCount(Mat &unateMat, int *Binate, int *Unate);
+
 #ifdef __cplusplus
 }
 #endif
+
+void Bmatch_GetUnateCount(Mat &unateMat, int *Binate, int *Unate) {
+    for (int i = 0; i < unateMat.size(); ++i) {
+        Binate[i] = 0;
+        Unate[i] = 0;
+        for (auto &unateness : unateMat[i]) {
+            if (unateness == 3)
+                ++Binate[i];
+            else if (unateness > 0)
+                ++Unate[i];
+        }
+    }
+}
 
 void Bmatch_SatUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int Po, int iter) {
     int trival_case = 0;
