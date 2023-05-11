@@ -149,6 +149,7 @@ extern int Bmatch_ReadNtk(Bmatch_Man_t *pMan, Abc_Ntk_t **ppNtk1, Abc_Ntk_t **pp
 // bmatchUnate.cpp
 extern void Bmatch_RandomSimUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int iter);
 extern void Bmatch_SatUnate(Abc_Ntk_t *pNtk, Mat &unateMat, int Po, int iter);
+extern void Bmatch_GetUnateCount(Mat &unateMat, int *Binate, int *Unate);
 
 // bmatchFunc.cpp
 extern void Bmatch_CalCir1Redund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
