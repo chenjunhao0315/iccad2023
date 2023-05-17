@@ -7,7 +7,8 @@
 #include <tuple>
 
 #include "base/abc/abc.h"
-#include "sat/bsat/satSolver.h"
+#include "AutoBuffer.hpp"
+#include "bmatchCadicalSat.hpp"
 
 #define VERBOSE_MASK        (1 << 0)
 #define VERBOSE_DETAIL_MASK (1 << 1)
@@ -97,12 +98,13 @@ public:
     Mat unateMat1;
     Mat unateMat2;
 
-
     // input solver, output solver
-    sat_solver *pInputSolver;
-    sat_solver *pOutputSolver;
+    CaDiCaL::Solver *pInputSolver;
+    CaDiCaL::Solver *pOutputSolver;
     int ni, mi;
     int no, mo;
+    int heuristicStage;
+    std::set<int> impossibleMI;
 
     //learned clause level
     std::vector<int> LearnedLevel;
