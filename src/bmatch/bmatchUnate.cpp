@@ -1,5 +1,7 @@
 #include "bmatch.hpp"
 
+#include "sat/bsat/satSolver.h"
+
 #include <math.h>
 
 ABC_NAMESPACE_IMPL_START

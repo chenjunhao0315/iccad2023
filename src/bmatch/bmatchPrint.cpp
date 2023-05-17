@@ -191,11 +191,15 @@ void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
         }                                                                 \
     } while (0)
 
-    Abc_Print(1, "Symmetry information\n");
-    Abc_Print(1, "  Cir1:\n");
-    PRINT_SYMM(pMan->vSymm1, pNtk1);
-    Abc_Print(1, "  Cir2:\n");
-    PRINT_SYMM(pMan->vSymm2, pNtk2);
+    if (!pMan->vSymm1.empty() && !pMan->vSymm2.empty()) {
+        Abc_Print(1, "Symmetry information\n");
+        Abc_Print(1, "  Cir1:\n");
+        PRINT_SYMM(pMan->vSymm1, pNtk1);
+        Abc_Print(1, "  Cir2:\n");
+        PRINT_SYMM(pMan->vSymm2, pNtk2);
+    } else {
+        Abc_Print(1, "No Symmetry information!\n");
+    }
 
     #undef PRINT_SYMM
 }

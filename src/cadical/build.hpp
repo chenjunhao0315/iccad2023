@@ -1,0 +1,5 @@
+#define VERSION "1.5.3"
+#define IDENTIFIER "84b44398e6346f387182a4ab0fe23ddffd7c8570"
+#define COMPILER "Apple clang version 14.0.0 (clang-1400.0.29.102)"
+#define FLAGS "-Wall -Wextra -O3 -DNDEBUG -std=c++11"
+#define DATE "Thu May 18 05:40:33 CST 2023 Darwin chenjunhaode-MacBook-Pro.local 21.6.0 x86_64"
