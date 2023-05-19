@@ -56,7 +56,7 @@ static int Bmatch_sat_solver_var_value(CaDiCaL::Solver *solver, int var) {
 static int *Bmatch_sat_solver_get_model(CaDiCaL::Solver *pSolver, int *pVars, int nVars) {
     int *pModel = (int*)malloc(sizeof(int) * (nVars + 1));
     for (int i = 0; i < nVars; i++)
-        pModel[i] = Bmatch_sat_solver_var_value(pSolver, pVars[i]);
+        pModel[i] = Bmatch_sat_solver_var_value(pSolver, pVars[i]) > 0;
     return pModel;
 }
 
