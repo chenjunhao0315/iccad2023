@@ -111,13 +111,13 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             MI = Mapping.MI;
 
             assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
-            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0, 0);
+            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
         }
 
-        Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
+        Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
 
         if (result.status == EQUIVALENT) {
-            printf("Find matching at iteration %d!!!\n", iter);
+            if (option & VERBOSE_DETAIL_MASK) printf("Find matching at iteration %d!!!\n", iter);
             Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
             Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
 
@@ -126,9 +126,14 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
                 score += (int)!MO_new[i].empty() + MO_new[i].size();
             }
             optimal = score == 2*Abc_NtkPoNum(pNtk2);
+            if (score > best) {
+                printf("Optimal: %d Current: %d\n", 2*Abc_NtkPoNum(pNtk2), best = score);
+            }
         } else {
-            if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
-            else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
+            if (option & VERBOSE_DETAIL_MASK) {
+                if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
+                else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
+            }
             Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
         }
         iter = 0;
@@ -136,6 +141,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         tried++;
     }
     printf("Output Solver tried %d times\n", tried);
+    Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 }
 
 void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
