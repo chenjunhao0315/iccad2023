@@ -21,7 +21,7 @@ void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, 
 void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
-void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk1, vSupp &oStrSupp, std::set<int> &sRedund);
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, AutoBuffer<int> &sRedund);
 void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat);
 void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
@@ -86,14 +86,13 @@ void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat) {
     }
 }
 
-void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, std::set<int> &sRedund) {
-    sRedund.clear();
-    for (int i = 0; i < Abc_NtkPiNum(pNtk); ++i)
-        sRedund.insert(i);
+void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, AutoBuffer<int> &sRedund) {
+    sRedund.resize(Abc_NtkPiNum(pNtk));
+    sRedund.fill(1);
 
     for (auto &s : oStrSupp)
         for (auto &p : s)
-            sRedund.erase(p);
+            sRedund[p] = 0;
 }
 
 void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund) {
