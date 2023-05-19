@@ -45,10 +45,19 @@ static int Bmatch_sat_solver_solve(CaDiCaL::Solver *solver, int *assum_begin, in
     return solver->solve();
 }
 
-static int Bmatch_sat_solver_val(CaDiCaL::Solver *solver, int lit) {
-    return solver->val(Bmatch_toLit(lit));
+static int Bmatch_sat_solver_simplify(CaDiCaL::Solver *solver, int rounds = 3) {
+    return solver->simplify(rounds);
 }
 
+static int Bmatch_sat_solver_var_value(CaDiCaL::Solver *solver, int var) {
+    return solver->val(Bmatch_toLit(var));
+}
 
+static int *Bmatch_sat_solver_get_model(CaDiCaL::Solver *pSolver, int *pVars, int nVars) {
+    int *pModel = (int*)malloc(sizeof(int) * (nVars + 1));
+    for (int i = 0; i < nVars; i++)
+        pModel[i] = Bmatch_sat_solver_var_value(pSolver, pVars[i]);
+    return pModel;
+}
 
 #endif // BMATCH_CADICALSAT_HPP

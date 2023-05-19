@@ -3,6 +3,7 @@
 #include "proof/fra/fra.h"
 #include "aig/aig/aig.h"
 #include "proof/fraig/fraig.h"
+#include "sat/cnf/cnf.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -12,14 +13,15 @@ extern "C" {
 
 extern Aig_Man_t *Abc_NtkToDar( Abc_Ntk_t *pNtk, int fExors, int fRegisters );
 static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel, vMatch &MI, vMatch &MO);
-int Bmatch_SatFraig(Abc_Ntk_t **ppNtk);
-EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat);
+int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
+EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 
 #ifdef __cplusplus
 }
 #endif
 
-EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose) {
+EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose) {
     abctime clk = Abc_Clock();
     Abc_Ntk_t *pNtkMiter;
     int RetValue, Status;
@@ -50,7 +52,7 @@ EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
         return {EQUIVALENT, NULL};
     }
 
-    RetValue = Bmatch_SatFraig(&pNtkMiter);
+    RetValue = Bmatch_SatFraig(&pNtkMiter, cadicalSat);
     if (RetValue == -1) {
         if (fVerbose) Abc_Print(1, "Networks are undecided (resource limits is reached).\n");
         Status = RESOURCE_LIMIT;
@@ -78,7 +80,7 @@ EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
     return {Status, model};
 }
 
-int Bmatch_SatFraig(Abc_Ntk_t **ppNtk) {
+int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat) {
     Abc_Ntk_t *pNtk = *ppNtk;
     Abc_Obj_t *pObj, *pFanin;
     Aig_Man_t *pMan;
@@ -92,10 +94,105 @@ int Bmatch_SatFraig(Abc_Ntk_t **ppNtk) {
     }
 
     pMan = Abc_NtkToDar(pNtk, 0, 0);
-    RetValue = Fra_FraigSat(pMan, (ABC_INT64_T)5000, (ABC_INT64_T)0, 0, 0, 0, 1, 0, 0, 0); 
+    RetValue = (cadicalSat) ? Bmatch_FraigCadicalSat(pMan, 0) : Fra_FraigSat(pMan, (ABC_INT64_T)5000, (ABC_INT64_T)0, 0, 0, 0, 1, 0, 0, 0);
     pNtk->pModel = (int *)pMan->pData, pMan->pData = NULL;
     Aig_ManStop(pMan);
 
+    return RetValue;
+}
+
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p) {
+    CaDiCaL::Solver *pSat = pSolver;
+    int i, f, status;
+    assert(pSat);
+
+    Bmatch_sat_solver_setnvars(pSat, p->nVars);
+    for (i = 0; i < p->nClauses; i++) {
+        AutoBuffer<int> pLits(p->pClauses[i + 1] - p->pClauses[i]);
+        for (int j = 0, *k = p->pClauses[i]; j < pLits.size(); ++j, ++k) {
+            pLits[j] = Bmatch_toLitCond((*k) >> 1, (*k) & 1);
+        }
+        Bmatch_sat_solver_addclause(pSat, pLits, pLits + pLits.size());
+    }
+    status = Bmatch_sat_solver_simplify(pSat);
+    if (status == 20) {
+        Bmatch_sat_solver_delete(pSat);
+        return NULL;
+    }
+    return pSat;
+}
+
+int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf) {
+    CaDiCaL::Solver *pSat = pSolver;
+    Aig_Obj_t *pObj;
+    int i;
+    AutoBuffer<int> pLits(Aig_ManCoNum(pCnf->pMan));
+    Aig_ManForEachCo(pCnf->pMan, pObj, i)
+        pLits[i] = Bmatch_toLitCond(pCnf->pVarNums[pObj->Id], 0);
+    Bmatch_sat_solver_addclause( pSat, pLits, pLits + Aig_ManCoNum(pCnf->pMan));
+
+    return 1;
+}
+
+int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose) {
+    CaDiCaL::Solver *pSat;
+    Cnf_Dat_t *pCnf;
+    int status, RetValue = 0;
+    Vec_Int_t *vCiIds;
+    abctime clk = Abc_Clock();
+
+    assert(Aig_ManRegNum(pMan) == 0);
+    pMan->pData = NULL;
+
+    // derive CNF
+    pCnf = Cnf_Derive(pMan, Aig_ManCoNum(pMan));
+
+    // FlipBits
+    Cnf_DataTranformPolarity(pCnf, 0);
+
+    if (fVerbose) {
+        printf( "CNF stats: Vars = %6d. Clauses = %7d. Literals = %8d. ", pCnf->nVars, pCnf->nClauses, pCnf->nLiterals );
+        Abc_PrintTime(1, "Time", Abc_Clock() - clk);
+    }
+
+    pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf);
+    if (pSat == NULL) {
+        Cnf_DataFree( pCnf );
+        return 1;
+    }
+    Bmatch_Cnf_DataWriteOrClause(pSat, pCnf);
+
+    vCiIds = Cnf_DataCollectPiSatNums(pCnf, pMan);
+    Cnf_DataFree(pCnf);
+
+    clk = Abc_Clock();
+    status = Bmatch_sat_solver_simplify(pSat);
+
+    if (status == 20) {
+        Vec_IntFree( vCiIds );
+        Bmatch_sat_solver_delete( pSat );
+        return 1;
+    }
+
+    clk = Abc_Clock();
+
+    status = Bmatch_sat_solver_solve(pSat, NULL, NULL, 0, 0, 0, 0);
+    if (status == 0) {
+        RetValue = -1;
+    } else if (status == 10) {
+        RetValue = 0;
+    } else if (status == 20) {
+        RetValue = 1;
+    } else
+        assert(false);
+
+    // if the problem is SAT, get the counterexample
+    if (status == 10) {
+        pMan->pData = Bmatch_sat_solver_get_model(pSat, vCiIds->pArray, vCiIds->nSize);
+    }
+
+    Bmatch_sat_solver_delete(pSat);
+    Vec_IntFree( vCiIds );
     return RetValue;
 }
 
