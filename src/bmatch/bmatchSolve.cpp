@@ -58,7 +58,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
-    int maxIter = 5000, iter = 0, tried = 0;
+    int maxIter = 5000, iter = 0, tried = 0, best = 0;
     int ret = 1;
     EcResult result;
 
@@ -111,7 +111,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             MI = Mapping.MI;
 
             assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
-            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0);
+            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 0, 0);
         }
 
         Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
@@ -208,7 +208,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
     std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
     auto *pSolver = pMan->pOutputSolver;
     
-    AutoBuffer<int> pLits(n*m);
+    AutoBuffer<int> pLits(n*m+1);
     int cont = 0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<m; j++){
@@ -233,6 +233,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
 vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose){
     vMatch MO_new(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
     auto *pSolver = pMan->pOutputSolver;
+    // pSolver->set("verbose", 3);
     std::vector<int> learnedAssumption = pMan->LearnedAssumption;
     std::vector<int> ClauseControl = pMan->ClauseControl;
     //pSolver->verbosity = 2;
@@ -316,8 +317,8 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     for (int i = 0; i < n; ++i) {
         if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPo(pNtk2, i)));
         for (int j = 0; j < m; ++j) {
-            if (fVerbose) printf(" %3d", Bmatch_sat_solver_val(pSolver, i * m + j) > 0);
-            if (Bmatch_sat_solver_val(pSolver, i * m + j) > 0) {
+            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0);
+            if (Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0) {
                 MO_new[j / 2].emplace_back(i, (int)((j & 1) != 0));
                 bool add = true;
                 for(int k=0; k<MO.size(); k++){
@@ -477,9 +478,11 @@ InputMapping Bmatch_HeuristicSolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Ab
 InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose) {
     vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
     auto *pSolver = pMan->pInputSolver;
+    // pSolver->set("verbose", 3);
 
-    int status = Bmatch_sat_solver_solve(pSolver, bLits, eLits, 0, 0, 0, 0);
-    // print(status == l_True ? "InputSolver: SAT" : "InputSolver: UNSAT");
+    int status = Bmatch_sat_solver_simplify(pSolver, 0);
+    if (status == 20) return {0, MI};
+    status = Bmatch_sat_solver_solve(pSolver, bLits, eLits, 0, 0, 0, 0);
     if (status == 20 || status == 0) return {0, MI};
 
     int n = pMan->ni;
@@ -489,8 +492,8 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     for (int i = 0; i < n; ++i) {
         if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPi(pNtk2, i)));
         for (int j = 0; j < m; ++j) {
-            if (fVerbose) printf(" %3d", Bmatch_sat_solver_val(pSolver, i * m + j) > 0);
-            if (Bmatch_sat_solver_val(pSolver, i * m + j) > 0) {
+            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0);
+            if (Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0) {
                 MI[j / 2].emplace_back(i, (int)((j & 1) != 0));
             }
         }
