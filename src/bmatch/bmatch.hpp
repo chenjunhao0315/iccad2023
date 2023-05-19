@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <tuple>
+#include <array>
 
 #include "base/abc/abc.h"
 #include "AutoBuffer.hpp"
@@ -80,8 +81,8 @@ public:
     // redundant support information
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
-    std::set<int> sRedund1;
-    std::set<int> sRedund2;
+    AutoBuffer<int> sRedund1;
+    AutoBuffer<int> sRedund2;
 
     // symmetry group
     vSymm vSymm1;
@@ -104,7 +105,7 @@ public:
     int ni, mi;
     int no, mo;
     int heuristicStage;
-    std::set<int> impossibleMI;
+    AutoBuffer<int> impossibleMI;
 
     //learned clause level
     std::vector<int> LearnedLevel;

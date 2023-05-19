@@ -40,7 +40,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 
 // x2
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
-#define OUTPUT_MAPPING vMatch MO_test = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
+// #define OUTPUT_MAPPING vMatch MO_test = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
 // #define OUTPUT_MAPPING vMatch MO_test = {{}, {Literal(1, false)}, {}, {}};
 // case 0
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
@@ -49,7 +49,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
 
 // case 14
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
+#define OUTPUT_MAPPING vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
 
 // case 15
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(8)}, {Literal(0)}, {Literal(2)}, {Literal(4)}, {Literal(5)}, {Literal(3)}, {Literal(1)}, {Literal(9)}, {Literal(6)}, {Literal(7)}};
@@ -672,10 +672,10 @@ int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     // counter example
     for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+        if (sRedund2[i]) continue;
         for (int j = 0; j < Abc_NtkPiNum(pNtk1); ++j) {
-            if (sRedund2.count(i) == 1) continue;
-            else if (sRedund1.count(j) == 1) continue;
-            else if (impossibleMI.count(i * mi + j * 2) || impossibleMI.count(i * mi + j * 2 + 1)) continue;
+            if (sRedund1[j]) continue;
+            else if (impossibleMI[i * mi + j * 2] || impossibleMI[i * mi + j * 2 + 1]) continue;
             pLits[k++] = Bmatch_toLit(i * mi + j * 2 + (pModel2[i] == pModel1[j]));
             // printf("(%d %d) ", i, j * 2 + (pModel2[i] == pModel1[j]));
         }
@@ -684,13 +684,13 @@ int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
     Bmatch_sat_solver_addclause(pSolver, pLits, pLits + k);
 
     // discard current
-    k = 0;
-    for (int i = 0; i < Abc_NtkPiNum(pNtk1) + 1; ++i) {
-        for (auto &p : MI[i]) {
-            pLits[k++] = Bmatch_toLitCond(p.var() * mi + i * 2 + p.sign(), 1);
-        }
-    }
-    Bmatch_sat_solver_addclause(pSolver, pLits, pLits + k);
+    // k = 0;
+    // for (int i = 0; i < Abc_NtkPiNum(pNtk1) + 1; ++i) {
+    //     for (auto &p : MI[i]) {
+    //         pLits[k++] = Bmatch_toLitCond(p.var() * mi + i * 2 + p.sign(), 1);
+    //     }
+    // }
+    // Bmatch_sat_solver_addclause(pSolver, pLits, pLits + k);
 
     ABC_FREE(pModel1);
     // ABC_FREE(pModel2);
@@ -725,10 +725,10 @@ int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO) {
                     if (cond1.size() == cond2.size()) { // if functional support is the same, then the input of gi cannot be const
                         int Lit = Bmatch_toLitCond(n * mi + mi - 1, 1);
                         Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
-                        impossibleMI.insert(n * mi + mi - 1);
+                        impossibleMI[n * mi + mi - 1] = 1;
                         Lit = Bmatch_toLitCond(n * mi + mi - 2, 1);
                         Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
-                        impossibleMI.insert(n * mi + mi - 2);
+                        impossibleMI[n * mi + mi - 2] = 1;
                     }
                 }
                 Bmatch_sat_solver_addclause(pSolver, pLits, pLits + i);
@@ -773,7 +773,7 @@ int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO) {
             if (valid[n * mi + m] == 0) {
                 int Lit = Bmatch_toLitCond(n * mi + m, 1);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
-                impossibleMI.insert(n * mi + m);
+                impossibleMI[n * mi + m] = 1;
             }
         }
     }
@@ -790,15 +790,15 @@ int Bmatch_ApplyInputSolverRowConstraint(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
     int start = 0;
     int n = pMan->ni;
     int m = pMan->mi;
-    std::set<int> &sRedund1 = pMan->sRedund1;
-    std::set<int> &sRedund2 = pMan->sRedund2;
-    std::set<int> &impossibleMI = pMan->impossibleMI;
+    auto &sRedund1 = pMan->sRedund1;
+    auto &sRedund2 = pMan->sRedund2;
+    auto &impossibleMI = pMan->impossibleMI;
 
     AutoBuffer<int> pLits(m);
 
     for (int i = 0; i < n; ++i) {
         // if input of cir2 is redundant
-        if (sRedund2.count(i) == 1) {
+        if (sRedund2[i]) {
             pLits[0] = Bmatch_toLit(i * m + m - 1); // set it to constant
             Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 1);
             continue;
@@ -806,16 +806,16 @@ int Bmatch_ApplyInputSolverRowConstraint(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         // V(aij v bij)
         start = 0;
         for (int j = 0; j < m; ++j) {
-            if (sRedund1.count(j / 2) == 1) continue; // do not consider cir1's redundant input
-            else if (impossibleMI.count(i * m + j) == 1) continue; // impossible MI
+            if (j < m - 2 && sRedund1[j / 2]) continue; // do not consider cir1's redundant input
+            else if (impossibleMI[i * m + j]) continue; // impossible MI
             pLits[start++] = Bmatch_toLit(i * m + j);
         }
         Bmatch_sat_solver_addclause(pSolver, pLits, pLits + start);
 
         // VC~(row, 2)
         for (int j = 0; j < m - 1; ++j) {
-            if (sRedund1.count(j / 2) == 1) continue; // do not consider cir1's redundant input
-            else if (impossibleMI.count(i * m + j) == 1) continue; // impossible MI
+            if (j < m - 2 && sRedund1[j / 2]) continue; // do not consider cir1's redundant input
+            else if (impossibleMI[i * m + j]) continue; // impossible MI
             pLits[0] = Bmatch_toLitCond(i * m + j, 1);
             for (int k = j + 1; k < m; ++k) {
                 pLits[1] = Bmatch_toLitCond(i * m + k, 1);
@@ -842,7 +842,8 @@ int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk
     Bmatch_sat_solver_setnvars(pSolver, n * m);
 
     pMan->heuristicStage = 0;
-    pMan->impossibleMI.clear();
+    pMan->impossibleMI.resize(n * m);
+    pMan->impossibleMI.fill(0);
     pMan->pInputSolver = pSolver;
 
     return ret;
