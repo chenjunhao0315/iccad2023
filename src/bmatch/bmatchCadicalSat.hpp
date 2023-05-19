@@ -45,7 +45,7 @@ static int Bmatch_sat_solver_solve(CaDiCaL::Solver *solver, int *assum_begin, in
     return solver->solve();
 }
 
-static int Bmatch_sat_solver_simplify(CaDiCaL::Solver *solver, int rounds = 3) {
+static int Bmatch_sat_solver_simplify(CaDiCaL::Solver *solver, int rounds = 0) {
     return solver->simplify(rounds);
 }
 
