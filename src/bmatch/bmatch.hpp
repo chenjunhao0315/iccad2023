@@ -104,8 +104,12 @@ public:
     CaDiCaL::Solver *pOutputSolver;
     int ni, mi;
     int no, mo;
-    int heuristicStage;
     AutoBuffer<int> impossibleMI;
+
+    // controllable miter
+    CaDiCaL::Solver *pMiterSolver;
+    AutoBuffer<int> inputControl;
+    int controlOffset;
 
     //learned clause level
     std::vector<int> LearnedLevel;
@@ -162,9 +166,23 @@ extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
 // bmatchSolve.cpp
 extern void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
+// bmatchInputSolver.cpp
+extern void Bmatch_InitControllableMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+extern int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern int Bmatch_ApplyInputSolverRowConstraint(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO);
+extern int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO);
+extern int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO);
+extern int Bmatch_PruneInputSolverByUnate(Bmatch_Man_t *pMan, vMatch &MO);
+extern int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI);
+extern int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO);
+extern InputMapping Bmatch_HeuristicSolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
+
 // bmatchEc.cpp
 extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 extern CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset);
+extern EcResult Bmatch_NtkControlEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
 
 // bmatchMiter.cpp
 extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
