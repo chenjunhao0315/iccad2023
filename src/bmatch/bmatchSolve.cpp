@@ -101,6 +101,10 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByUnate(pMan, MO_new);
         ret &= Bmatch_ApplyInputSolverRowConstraint(pMan, pNtk1, pNtk2);
+        int offset = 0;
+        auto *pMiterSat = Bmatch_ControlSat(pNtk1, pNtk2, MO_new, offset);
+        // pMiterSat->write_dimacs("pMiterSat.txt");
+        // Abc_NtkPrintIo(stdout, pMiter, 0);
 
         while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
             ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
@@ -110,14 +114,39 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             if (Mapping.status == 0) break;
             MI = Mapping.MI;
 
-            assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
-            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
+            AutoBuffer<int> pAssumption(pMan->ni * pMan->mi);
+            for (int i = 0; i < pMan->ni; ++i) {
+                for (int j = 0; j < pMan->mi; ++j) {
+                    pAssumption[i * pMan->mi + j] = Bmatch_toLitCond(i * pMan->mi + j + offset, 1);
+                }
+            }
+            for (int i = 0; i < MI.size(); ++i) {
+                for (auto &j : MI[i]) {
+                    pAssumption[j.var() * pMan->mi + i * 2 + j.sign()] = -pAssumption[j.var() * pMan->mi + i * 2 + j.sign()];
+                }
+            }
+            int status = Bmatch_sat_solver_solve(pMiterSat, pAssumption, pAssumption + pAssumption.size(), 0, 0, 0, 0);
+            if (status == 10) {
+                int *pModel1 = ABC_ALLOC(int, Abc_NtkPiNum(pNtk1));
+                for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+                    pModel1[i] = Bmatch_sat_solver_var_value(pMiterSat, pMan->mi * pMan->ni + offset + i);
+                }
+                result.model = pModel1;
+                result.status = NON_EQUIVALENT;
+            } else {
+                result.model = NULL;
+                result.status = EQUIVALENT;
+            }
+            
+
+            // assert(MI.size() == Abc_NtkPiNum(pNtk1) + 1);
+            // result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
         }
 
         Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
 
         if (result.status == EQUIVALENT) {
-            if (option & VERBOSE_DETAIL_MASK) printf("Find matching at iteration %d!!!\n", iter);
+            printf("Find matching at iteration %d!!!\n", iter);
             Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
             Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
 
@@ -139,8 +168,10 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         iter = 0;
         ret = 1;
         tried++;
+        if (pMiterSat) Bmatch_sat_solver_delete(pMiterSat);
     }
     printf("Output Solver tried %d times\n", tried);
+    printf("Best score: %d\n", best);
     Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 }
 
@@ -323,8 +354,8 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     for (int i = 0; i < n; ++i) {
         if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPo(pNtk2, i)));
         for (int j = 0; j < m; ++j) {
-            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0);
-            if (Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0) {
+            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j));
+            if (Bmatch_sat_solver_var_value(pSolver, i * m + j)) {
                 MO_new[j / 2].emplace_back(i, (int)((j & 1) != 0));
                 bool add = true;
                 for(int k=0; k<MO.size(); k++){
@@ -498,8 +529,8 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     for (int i = 0; i < n; ++i) {
         if (fVerbose) printf("%3s: ", Abc_ObjName(Abc_NtkPi(pNtk2, i)));
         for (int j = 0; j < m; ++j) {
-            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0);
-            if (Bmatch_sat_solver_var_value(pSolver, i * m + j) > 0) {
+            if (fVerbose) printf(" %3d", Bmatch_sat_solver_var_value(pSolver, i * m + j));
+            if (Bmatch_sat_solver_var_value(pSolver, i * m + j)) {
                 MI[j / 2].emplace_back(i, (int)((j & 1) != 0));
             }
         }
