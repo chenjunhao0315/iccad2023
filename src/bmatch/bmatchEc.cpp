@@ -4,6 +4,7 @@
 #include "aig/aig/aig.h"
 #include "proof/fraig/fraig.h"
 #include "sat/cnf/cnf.h"
+#include "base/io/ioAbc.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -16,10 +17,51 @@ static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int 
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat);
 int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset = 0);
+int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf);
+CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset);
 
 #ifdef __cplusplus
 }
 #endif
+
+CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset) {
+    Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableMiter(pNtk1, pNtk2, MO);
+    Aig_Man_t *pMan = Abc_NtkToDar(pNtkMiter, 0, 0);
+    Cnf_Dat_t *pCnf;
+    CaDiCaL::Solver *pSat;
+    int m = 2 * (Abc_NtkPiNum(pNtk1) + 1);
+    int n = Abc_NtkPiNum(pNtk2);
+
+    assert(Aig_ManRegNum(pMan) == 0);
+    pMan->pData = NULL;
+
+    // derive CNF
+    pCnf = Cnf_Derive(pMan, Aig_ManCoNum(pMan));
+    offset = pCnf->pVarNums[Abc_NtkPi(pNtkMiter, 0)->Id];
+
+    // FlipBits
+    Cnf_DataTranformPolarity(pCnf, 0);
+
+    // write CNF
+    pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf, 0);
+    if (pSat == NULL) {
+        Cnf_DataFree( pCnf );
+        return NULL;
+    }
+    Bmatch_Cnf_DataWriteOrClause(pSat, pCnf);
+
+    Cnf_DataFree(pCnf);
+
+    int status = Bmatch_sat_solver_simplify(pSat);
+
+    if (status == 20) {
+        Bmatch_sat_solver_delete(pSat);
+        return NULL;
+    }
+
+    return pSat;
+}
 
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose) {
     abctime clk = Abc_Clock();
@@ -101,16 +143,16 @@ int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat) {
     return RetValue;
 }
 
-CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p) {
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset) {
     CaDiCaL::Solver *pSat = pSolver;
     int i, f, status;
     assert(pSat);
 
-    Bmatch_sat_solver_setnvars(pSat, p->nVars);
+    Bmatch_sat_solver_setnvars(pSat, p->nVars + offset);
     for (i = 0; i < p->nClauses; i++) {
         AutoBuffer<int> pLits(p->pClauses[i + 1] - p->pClauses[i]);
         for (int j = 0, *k = p->pClauses[i]; j < pLits.size(); ++j, ++k) {
-            pLits[j] = Bmatch_toLitCond((*k) >> 1, (*k) & 1);
+            pLits[j] = Bmatch_toLitCond(((*k) >> 1) + offset, (*k) & 1);
         }
         Bmatch_sat_solver_addclause(pSat, pLits, pLits + pLits.size());
     }
@@ -155,6 +197,7 @@ int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose) {
         Abc_PrintTime(1, "Time", Abc_Clock() - clk);
     }
 
+    // write CNF
     pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf);
     if (pSat == NULL) {
         Cnf_DataFree( pCnf );

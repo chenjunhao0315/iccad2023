@@ -13,11 +13,15 @@ extern "C" {
 // ckt1[1] = {ckt2[?]}
 
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+Abc_Ntk_t *Bmatch_NtkControllableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2);
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO);
 void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter);
 void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MO);
-void Bmatch_NtkControlableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+
+Abc_Obj_t *Bmatch_NtkCreateOr(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal);
+Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal);
+Abc_Obj_t *Bmatch_NtkCreateParallelCase(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal);
 
 #ifdef __cplusplus
 }
@@ -93,7 +97,7 @@ void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkM
         pObj->pCopy = (p.sign()) ? Abc_ObjNot(Abc_AigConst1(pNtkMiter)) : Abc_AigConst1(pNtkMiter);
     }
     pObjNew = Abc_NtkCreatePo(pNtkMiter);
-    Abc_ObjAssignName(pObjNew, "miter", Abc_ObjName(pObjNew));
+    Abc_ObjAssignName(pObjNew, "miter_", Abc_ObjName(pObjNew));
 }
 
 void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter) {
@@ -130,7 +134,7 @@ void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtk
     Vec_PtrFree(vPairs);
 }
 
-void Bmatch_NtkControllableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+Abc_Ntk_t *Bmatch_NtkControllableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     assert(Abc_NtkIsDfsOrdered(pNtk1));
     assert(Abc_NtkIsDfsOrdered(pNtk2));
     char Buffer[1000];
@@ -139,14 +143,130 @@ void Bmatch_NtkControllableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
     sprintf(Buffer, "%s_%s_miter", pNtk1->pName, pNtk2->pName);
     Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
     Abc_Aig_t *pMan = (Abc_Aig_t *)pNtkMiter->pManFunc;
+    int i;
+    Abc_Obj_t *pObj, *pObjTemp, *pObjNew;
 
     Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
     Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);
 
-    std::vector<std::vector<Abc_Obj_t *> > controlPi;
+    // MI control
+    std::vector<std::vector<Abc_Obj_t *> > controlPis;
     for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+        std::vector<Abc_Obj_t *> controlPi;
+        for (int j = 0; j < Abc_NtkPiNum(pNtk1); ++j) {
+            pObj = Abc_NtkCreatePi(pNtkMiter);
+            sprintf(Buffer, "a_%d_%d", i, j);
+            Abc_ObjAssignName(pObj, Buffer, NULL);
+            controlPi.emplace_back(std::move(pObj));
+            pObj = Abc_NtkCreatePi(pNtkMiter);
+            sprintf(Buffer, "b_%d_%d", i, j);
+            Abc_ObjAssignName(pObj, Buffer, NULL);
+            controlPi.emplace_back(std::move(pObj));
+        }
+        pObj = Abc_NtkCreatePi(pNtkMiter);
+        sprintf(Buffer, "a_%d_%d", i, Abc_NtkPiNum(pNtk1));
+        Abc_ObjAssignName(pObj, Buffer, NULL);
+        controlPi.emplace_back(std::move(pObj));
+        pObj = Abc_NtkCreatePi(pNtkMiter);
+        sprintf(Buffer, "b_%d_%d", i, Abc_NtkPiNum(pNtk1));
+        Abc_ObjAssignName(pObj, Buffer, NULL);
+        controlPi.emplace_back(std::move(pObj));
 
+        controlPis.emplace_back(std::move(controlPi));
     }
+
+    assert(controlPis.size() == Abc_NtkPiNum(pNtk2));
+
+    // Ntk1 Pi
+    std::vector<Abc_Obj_t *> Ntk1_Pis;
+    Abc_NtkForEachPi(pNtk1, pObj, i) {
+        pObjNew = Abc_NtkCreatePi(pNtkMiter);
+        sprintf(Buffer, "_ntk1");
+        Abc_ObjAssignName(pObjNew, Abc_ObjName(pObj), Buffer);
+        Ntk1_Pis.emplace_back(pObjNew);
+        Ntk1_Pis.emplace_back(Abc_ObjNot(pObjNew));
+        pObj->pCopy = pObjNew;
+    }
+    Ntk1_Pis.emplace_back(Abc_AigConst1(pNtkMiter));
+    Ntk1_Pis.emplace_back(Abc_ObjNot(Abc_AigConst1(pNtkMiter)));
+
+    // PO
+    pObjNew = Abc_NtkCreatePo(pNtkMiter);
+    Abc_ObjAssignName(pObjNew, "miter", Abc_ObjName(pObjNew));
+
+    // Create control input of Ntk2
+    Abc_NtkForEachPi(pNtk2, pObj, i) {
+        std::vector<Abc_Obj_t *> pControl = controlPis[i];
+        pObjNew = Bmatch_NtkCreateParallelCase(pMan, pControl, Ntk1_Pis);
+        pObj->pCopy = pObjNew;
+    }
+
+    // Construct over Ntk1 and Ntk2
+    Bmatch_NtkMiterAddOne(pNtk1, pNtkMiter);
+    Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
+
+    // Finalize
+    Bmatch_NtkMiterFinalize(pNtk1, pNtk2, pNtkMiter, MO);
+
+    // Cleanup
+    Abc_AigCleanup((Abc_Aig_t*)pNtkMiter->pManFunc);
+
+    if (!Abc_NtkCheck(pNtkMiter)) {
+        Abc_Print(-1, "Bmatch_NtkMiter: The network check has failed.\n");
+        Abc_NtkDelete(pNtkMiter);
+
+        return NULL;
+    }
+
+    return pNtkMiter;
+}
+
+Abc_Obj_t *Bmatch_NtkCreateParallelCase(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal) {
+    assert(pControl.size() == pSignal.size());
+
+    std::vector<Abc_Obj_t *> pAnds;
+    for (int i = 0; i < pControl.size(); ++i) {
+        Abc_Obj_t *pObj = Abc_AigAnd(pMan, pControl[i], pSignal[i]);
+        pAnds.emplace_back(pObj);
+    }
+
+    return Bmatch_NtkCreateOr(pMan, pAnds);
+}
+
+Abc_Obj_t *Bmatch_NtkCreateAndRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal, int start, int end) {
+    Abc_Obj_t *pNode = NULL;
+    int mid = (start + end) / 2;
+    if (start == end) {
+        pNode = pSignal[start];
+    } else if (start < end) {
+        Abc_Obj_t *pNode1 = Bmatch_NtkCreateAndRec(pMan, pSignal, start, mid);
+        Abc_Obj_t *pNode2 = Bmatch_NtkCreateAndRec(pMan, pSignal, mid + 1, end);
+        pNode = Abc_AigAnd(pMan, pNode1, pNode2);
+    }
+
+    return pNode;
+}
+
+Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal) {
+    return Bmatch_NtkCreateAndRec(pMan, pSignal, 0, pSignal.size() - 1);
+}
+
+Abc_Obj_t *Bmatch_NtkCreateOrRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal, int start, int end) {
+    Abc_Obj_t *pNode = NULL;
+    int mid = (start + end) / 2;
+    if (start == end) {
+        pNode = pSignal[start];
+    } else if (start < end) {
+        Abc_Obj_t *pNode1 = Bmatch_NtkCreateOrRec(pMan, pSignal, start, mid);
+        Abc_Obj_t *pNode2 = Bmatch_NtkCreateOrRec(pMan, pSignal, mid + 1, end);
+        pNode = Abc_AigOr(pMan, pNode1, pNode2);
+    }
+
+    return pNode;
+}
+
+Abc_Obj_t *Bmatch_NtkCreateOr(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal) {
+    return Bmatch_NtkCreateOrRec(pMan, pSignal, 0, pSignal.size() - 1);
 }
 
 ABC_NAMESPACE_IMPL_END

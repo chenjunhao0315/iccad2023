@@ -50,7 +50,7 @@ static int Bmatch_sat_solver_simplify(CaDiCaL::Solver *solver, int rounds = 0) {
 }
 
 static int Bmatch_sat_solver_var_value(CaDiCaL::Solver *solver, int var) {
-    return solver->val(Bmatch_toLit(var));
+    return solver->val(Bmatch_toLit(var)) > 0;
 }
 
 static int *Bmatch_sat_solver_get_model(CaDiCaL::Solver *pSolver, int *pVars, int nVars) {
