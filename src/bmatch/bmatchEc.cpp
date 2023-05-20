@@ -17,13 +17,42 @@ static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int 
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat);
 int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
+
 CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset = 0);
 int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf);
 CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset);
+EcResult Bmatch_NtkControlEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
 
 #ifdef __cplusplus
 }
 #endif
+
+EcResult Bmatch_NtkControlEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI) {
+    auto &pMiterSolver = pMan->pMiterSolver;
+    auto &inputControl = pMan->inputControl;
+    auto &controlOffset = pMan->controlOffset;
+
+    for (int i = 0; i < MI.size(); ++i) {
+        for (auto &j : MI[i]) {
+            inputControl[j.var() * pMan->mi + i * 2 + j.sign()] = -inputControl[j.var() * pMan->mi + i * 2 + j.sign()];
+        }
+    }
+    int status = Bmatch_sat_solver_solve(pMiterSolver, inputControl, inputControl + inputControl.size(), 0, 0, 0, 0);
+    for (int i = 0; i < MI.size(); ++i) {
+        for (auto &j : MI[i]) {
+            inputControl[j.var() * pMan->mi + i * 2 + j.sign()] = -inputControl[j.var() * pMan->mi + i * 2 + j.sign()];
+        }
+    }
+    if (status == 10) {
+        int *pModel1 = ABC_ALLOC(int, Abc_NtkPiNum(pNtk1));
+        for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+            pModel1[i] = Bmatch_sat_solver_var_value(pMiterSolver, pMan->mi * pMan->ni + controlOffset + i);
+        }
+        return {NON_EQUIVALENT, pModel1};
+    }
+
+    return {EQUIVALENT, NULL};
+}
 
 CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset) {
     Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableMiter(pNtk1, pNtk2, MO);
