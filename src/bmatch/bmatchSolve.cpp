@@ -104,7 +104,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
         int controllableMiter = 1;
         
-        if (controllableMiter) Bmatch_InitControllableMiter(pMan, pNtk1, pNtk2, MO_new);
+        if (controllableMiter) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
 
         while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
             ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
