@@ -14,6 +14,8 @@ extern "C" {
 // ckt1[0] = {ckt2[?], ckt2[?]}
 // ckt1[1] = {ckt2[?]}
 
+extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
+
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
@@ -213,7 +215,7 @@ Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, 
         return NULL;
     }
 
-    // Io_Write(pNtkMiter, "miter.v", IO_FILE_VERILOG);
+    // Io_Write(pNtkMiter, "miter_rewrite.v", IO_FILE_VERILOG);
 
     return pNtkMiter;
 }
@@ -326,6 +328,8 @@ Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
     // Cleanup
     Abc_AigCleanup((Abc_Aig_t*)pNtkMiter->pManFunc);
 
+    pNtkMiter = Abc_NtkDC2(pNtkMiter, 1, 0, 1, 0, 0);
+
     if (!Abc_NtkCheck(pNtkMiter)) {
         Abc_Print(-1, "Bmatch_NtkMiter: The network check has failed.\n");
         Abc_NtkDelete(pNtkMiter);
@@ -333,7 +337,7 @@ Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
         return NULL;
     }
 
-    // Io_Write(pNtkMiter, "miter.v", IO_FILE_VERILOG);
+    // Io_Write(pNtkMiter, "miter_dc2_balance.v", IO_FILE_VERILOG);
 
     return pNtkMiter;
 }
