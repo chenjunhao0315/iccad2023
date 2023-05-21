@@ -20,7 +20,7 @@ EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatc
 
 CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset = 0);
 int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf);
-CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset);
+CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset);
 EcResult Bmatch_NtkControlEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
 
 #ifdef __cplusplus
@@ -54,8 +54,8 @@ EcResult Bmatch_NtkControlEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
     return {EQUIVALENT, NULL};
 }
 
-CaDiCaL::Solver *Bmatch_ControlSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset) {
-    Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableMiter(pNtk1, pNtk2, MO);
+CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &offset) {
+    Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO);
     Aig_Man_t *pMan = Abc_NtkToDar(pNtkMiter, 0, 0);
     Cnf_Dat_t *pCnf;
     CaDiCaL::Solver *pSat;

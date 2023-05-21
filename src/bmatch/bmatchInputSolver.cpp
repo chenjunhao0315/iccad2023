@@ -6,7 +6,7 @@ ABC_NAMESPACE_IMPL_START
 extern "C" {
 #endif
 
-void Bmatch_InitControllableMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+void Bmatch_InitControllableInputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_InitInputControl(Bmatch_Man_t *pMan, int offset);
 
 int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
@@ -24,11 +24,11 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 }
 #endif
 
-void Bmatch_InitControllableMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+void Bmatch_InitControllableInputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     int &controlOffset = pMan->controlOffset;
     CaDiCaL::Solver *pMiterSolver = pMan->pMiterSolver;
     if (pMiterSolver) Bmatch_sat_solver_delete(pMiterSolver);
-    pMiterSolver = Bmatch_ControlSat(pNtk1, pNtk2, MO, pMan->controlOffset);
+    pMiterSolver = Bmatch_ControllableInputSat(pNtk1, pNtk2, MO, pMan->controlOffset);
 
     Bmatch_InitInputControl(pMan, controlOffset);
 
