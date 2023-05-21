@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 void Bmatch_InitControllableInputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+void Bmatch_InitControllableInputOutputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_InitInputControl(Bmatch_Man_t *pMan, int offset);
 
 int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
@@ -23,6 +24,14 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 #ifdef __cplusplus
 }
 #endif
+
+void Bmatch_InitControllableInputOutputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    CaDiCaL::Solver *pMiterSolver = pMan->pMiterSolverNew;
+    if (pMiterSolver) Bmatch_sat_solver_delete(pMiterSolver);
+    pMiterSolver = Bmatch_ControllableInputOutputSat(pNtk1, pNtk2, pMan->controlOffset);
+
+    pMan->pMiterSolverNew = pMiterSolver;
+}
 
 void Bmatch_InitControllableInputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     int &controlOffset = pMan->controlOffset;

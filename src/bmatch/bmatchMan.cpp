@@ -17,6 +17,7 @@ Bmatch_Man_t* Bmatch_ManStart() {
     Bmatch_Man_t *p = new Bmatch_Man_t;
     p->pInputSolver = NULL;
     p->pMiterSolver = NULL;
+    p->pMiterSolverNew = NULL;
     p->pOutputSolver = NULL;
 
     return p;
@@ -25,6 +26,7 @@ Bmatch_Man_t* Bmatch_ManStart() {
 void Bmatch_ManStop(Bmatch_Man_t* p) {
     if (p->pInputSolver) Bmatch_sat_solver_delete(p->pInputSolver);
     if (p->pMiterSolver) Bmatch_sat_solver_delete(p->pMiterSolver);
+    if (p->pMiterSolverNew) Bmatch_sat_solver_delete(p->pMiterSolverNew);
     if (p->pOutputSolver) Bmatch_sat_solver_delete(p->pOutputSolver);
     delete p;
 }
