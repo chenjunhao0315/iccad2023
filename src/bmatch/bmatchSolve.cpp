@@ -71,8 +71,16 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
 
+    int inputSolverMode = 0;
+    if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
+        if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
+            inputSolverMode = 1;
+        else
+            inputSolverMode = 2;
+    }
+
     //preprocess
-    Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
+    if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
     Bmatch_SolveOutputGroup(pMan);
     Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
@@ -102,10 +110,8 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByUnate(pMan, MO_new);
         ret &= Bmatch_ApplyInputSolverRowConstraint(pMan, pNtk1, pNtk2);
-
-        // int controllableMiter = 1;
         
-        // if (controllableMiter) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
+        if (inputSolverMode == 2) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
 
         while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
             ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
@@ -115,8 +121,9 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             if (Mapping.status == 0) break;
             MI = Mapping.MI;
 
-            // result = (controllableMiter) ? Bmatch_NtkControllableInputEcFraig(pMan, pNtk1, pNtk2, MI) : Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
-            result = Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO_new);
+            result = (inputSolverMode == 1) ? Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO_new)
+                   : (inputSolverMode == 2) ? Bmatch_NtkControllableInputEcFraig(pMan, pNtk1, pNtk2, MI)
+                   :                          Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
         }
 
         Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
