@@ -302,7 +302,6 @@ Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
 
     // Finalize
     // All possible miter
-    printf("nPoNtk1: %d nPoNtk2: %d\n", Abc_NtkPoNum(pNtk1), Abc_NtkPoNum(pNtk2));
     std::vector<Abc_Obj_t *> Ntk_Miters;
     Abc_NtkForEachPo(pNtk2, pObjNtk2, i) {
         int nControlPo = (int)(std::ceil(std::log2(Abc_NtkPoNum(pNtk1) + 1)));
@@ -311,14 +310,11 @@ Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
         Abc_Obj_t *pNtk2Po = Abc_ObjChild0Copy(pObjNtk2);
         Abc_Obj_t *pNtk2PoCInv = Abc_AigXor(pMan, controlPo[nControlPo], pNtk2Po);
 
-        printf("controlPo size: %d nControlPo: %d nPoNtk1: %d\n", controlPo.size(), nControlPo, Abc_NtkPoNum(pNtk1));
         Abc_NtkForEachPo(pNtk1, pObjNtk1, j) {
             Abc_Obj_t *pNtk1Po = Abc_ObjChild0Copy(pObjNtk1);
 
-            printf("Xors size: %d\n", Ntk_Xors.size());
             Ntk_Xors.push_back(Abc_AigXor(pMan, pNtk2PoCInv, pNtk1Po));
         }
-        printf("Xors size: %d\n", Ntk_Xors.size());
         Ntk_Xors.push_back(Abc_ObjNot(Abc_AigConst1(pNtkMiter))); // nonmap always equivalent
 
         Abc_Obj_t *pFinal = Bmatch_NtkCreateMultiplexer(pMan, controlPo, Ntk_Xors, 1);
