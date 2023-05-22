@@ -208,6 +208,8 @@ Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, 
     // Cleanup
     Abc_AigCleanup((Abc_Aig_t*)pNtkMiter->pManFunc);
 
+    pNtkMiter = Abc_NtkDC2(pNtkMiter, 1, 0, 1, 0, 0);
+
     if (!Abc_NtkCheck(pNtkMiter)) {
         Abc_Print(-1, "Bmatch_NtkMiter: The network check has failed.\n");
         Abc_NtkDelete(pNtkMiter);
