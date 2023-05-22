@@ -5,9 +5,11 @@
 #include <vector>
 #include <set>
 #include <tuple>
+#include <array>
 
 #include "base/abc/abc.h"
-#include "sat/bsat/satSolver.h"
+#include "AutoBuffer.hpp"
+#include "bmatchCadicalSat.hpp"
 
 #define VERBOSE_MASK        (1 << 0)
 #define VERBOSE_DETAIL_MASK (1 << 1)
@@ -79,8 +81,8 @@ public:
     // redundant support information
     vSupp oRedundSupp1;
     vSupp oRedundSupp2;
-    std::set<int> sRedund1;
-    std::set<int> sRedund2;
+    AutoBuffer<int> sRedund1;
+    AutoBuffer<int> sRedund2;
 
     // symmetry group
     vSymm vSymm1;
@@ -97,12 +99,13 @@ public:
     Mat unateMat1;
     Mat unateMat2;
 
-
     // input solver, output solver
-    sat_solver *pInputSolver;
-    sat_solver *pOutputSolver;
+    CaDiCaL::Solver *pInputSolver;
+    CaDiCaL::Solver *pOutputSolver;
     int ni, mi;
     int no, mo;
+    int heuristicStage;
+    AutoBuffer<int> impossibleMI;
 
     //learned clause level
     std::vector<int> LearnedLevel;
@@ -160,7 +163,7 @@ extern void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
 extern void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 // bmatchEc.cpp
-extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int fVerbose);
+extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 
 // bmatchMiter.cpp
 extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);

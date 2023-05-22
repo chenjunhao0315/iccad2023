@@ -17,6 +17,7 @@ int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2);
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO);
 void Bmatch_NtkMiterAddOne(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter);
 void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MO);
+void Bmatch_NtkControlableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
@@ -127,6 +128,25 @@ void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtk
     Abc_ObjAddFanin(Abc_NtkPo(pNtkMiter, 0), pMiter);
     
     Vec_PtrFree(vPairs);
+}
+
+void Bmatch_NtkControllableMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    assert(Abc_NtkIsDfsOrdered(pNtk1));
+    assert(Abc_NtkIsDfsOrdered(pNtk2));
+    char Buffer[1000];
+    Abc_Ntk_t * pNtkMiter;
+    pNtkMiter = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
+    sprintf(Buffer, "%s_%s_miter", pNtk1->pName, pNtk2->pName);
+    Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
+    Abc_Aig_t *pMan = (Abc_Aig_t *)pNtkMiter->pManFunc;
+
+    Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
+    Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);
+
+    std::vector<std::vector<Abc_Obj_t *> > controlPi;
+    for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+
+    }
 }
 
 ABC_NAMESPACE_IMPL_END

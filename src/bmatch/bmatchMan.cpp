@@ -22,8 +22,8 @@ Bmatch_Man_t* Bmatch_ManStart() {
 }
 
 void Bmatch_ManStop(Bmatch_Man_t* p) {
-    if (p->pInputSolver) sat_solver_delete(p->pInputSolver);
-    if (p->pOutputSolver) sat_solver_delete(p->pOutputSolver);
+    if (p->pInputSolver) Bmatch_sat_solver_delete(p->pInputSolver);
+    if (p->pOutputSolver) Bmatch_sat_solver_delete(p->pOutputSolver);
     delete p;
 }
 

@@ -64,6 +64,9 @@ public:
     inline const _Tp& operator[] (size_t i) const {
         DEBUG_CHECK(i < sz, "[AutoBuffer] out of range (index: %zu)\n", i); return ptr[i];
     }
+
+    // fill up buffer
+    void fill(_Tp value);
     
 protected:
     // pointer to the real buffer, can point to buf if the buffer is small enough
@@ -170,6 +173,13 @@ AutoBuffer<_Tp, fixed_size>::resize(size_t _size) {
 template<typename _Tp, size_t fixed_size> inline size_t
 AutoBuffer<_Tp, fixed_size>::size() const {
     return sz;
+}
+
+template<typename _Tp, size_t fixed_size>
+void AutoBuffer<_Tp, fixed_size>::fill(_Tp value) {
+    for (size_t i = 0; i < sz; ++i) {
+        ptr[i] = value;
+    }
 }
 
 #endif /* AutoBuffer_hpp */
