@@ -218,7 +218,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
     std::vector<int> LearnedAssumption = pMan->LearnedAssumption;
     auto *pSolver = pMan->pOutputSolver;
     
-    AutoBuffer<int> pLits(n*m+1);
+    AutoBuffer<int> pLits(n*m+1, 0);
     int cont = 0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<m; j++){
