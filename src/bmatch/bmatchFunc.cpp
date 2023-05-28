@@ -194,6 +194,23 @@ void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
     LINEAR_MAP(Pi, pMan->sBIO2, pNtk2, pMan->BI2);
     LINEAR_MAP(Po, pMan->sBIO2, pNtk2, pMan->BO2);
 
+    std::set<int> mapped;
+    for (auto &bi1: pMan->BI1) {
+        mapped.insert(bi1.begin(), bi1.end());
+    }
+    for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+        if (mapped.count(i) == 0)
+            pMan->BI1.push_back({i});
+    }
+    mapped.clear();
+    for (auto &bi2: pMan->BI2) {
+        mapped.insert(bi2.begin(), bi2.end());
+    }
+    for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+        if (mapped.count(i) == 0)
+            pMan->BI2.push_back({i});
+    }
+
     #undef LINEAR_MAP
 
     pMan->sBIO1.clear();

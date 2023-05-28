@@ -1,5 +1,7 @@
 #include "bmatch.hpp"
 
+#include "print.hpp"
+
 ABC_NAMESPACE_IMPL_START
 
 #ifdef __cplusplus
@@ -12,6 +14,7 @@ void Bmatch_InitInputControl(Bmatch_Man_t *pMan, int offset);
 
 int Bmatch_InitInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 int Bmatch_ApplyInputSolverRowConstraint(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+int Bmatch_PruneInputSolverByBusOrdered(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverByFuncSupport(Bmatch_Man_t *pMan, vMatch &MO);
 int Bmatch_PruneInputSolverBySymmetryProperty(Bmatch_Man_t *pMan, vMatch &MO);
@@ -87,6 +90,117 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     if (fVerbose) printf("\n");
 
     return {1, MI};
+}
+
+int Bmatch_PruneInputSolverByBusOrdered(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    if (pMan->BI1.empty() || pMan->BI2.empty()) return 1;
+
+    auto *pSolver = pMan->pInputSolver;
+
+    auto &BI1 = pMan->BI1;
+    auto &BI2 = pMan->BI2;
+
+    int mi = pMan->mi;
+
+    for (auto &bi1 : BI1) {
+        for (auto &bi2 : BI2) {
+            for (int i = 0; i < bi1.size(); ++i) {
+                int xi = bi1[i];
+                for (int j = 0; j < bi2.size(); ++j) {
+                    int yi = bi2[j];
+
+                    AutoBuffer<int, 3> pLits;
+                    for (int invA = 0; invA < 2; ++invA) {
+                        int match1 = yi * mi + xi * 2 + invA;
+                        pLits[0] = Bmatch_toLitCond(match1, 1);
+
+                        for (int k = 0; k < bi1.size(); ++k) {
+                            if (k == i) continue;
+                            for (int l = 0; l < bi2.size(); ++l) {
+                                if (l == j) continue;
+
+                                for (int invB = 0; invB < 2; ++invB) {
+                                    int match2 = l * mi + k * 2 + invB;
+                                    pLits[1] = Bmatch_toLitCond(match2, 1);
+
+                                    for (int m = 0; m < bi1.size(); ++m) {
+                                        if (m == i || m == k) continue;
+                                        for (int n = 0; n < bi2.size(); ++n) {
+                                            if (n == j || n == l) continue;
+
+                                            if ((l > j && (m > k || m < i) && (n < l && n > j)) || (l < j && (m < k || m > i) && (n > l))) {
+                                                for (int invC = 0; invC < 2; ++invC) {
+                                                    int disable = n * mi + m * 2 + invC;
+                                                    pLits[2] = Bmatch_toLitCond(disable, 1);
+
+                                                    Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 3);
+                                                }
+                                            } 
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return 1;
+}
+
+int Bmatch_PruneInputSolverByBusExactMap(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    if (pMan->BI1.empty() || pMan->BI2.empty()) return 1;
+
+    auto *pSolver = pMan->pInputSolver;
+    auto &BI1 = pMan->BI1;
+    auto &BI2 = pMan->BI2;
+
+    int mi = pMan->mi;
+
+    for (auto &bi1 : BI1) {
+        for (auto &bi2 : BI2) {
+            if (bi1.size() != bi2.size()) continue;
+
+            int size = bi1.size();
+            AutoBuffer<int, 3> pLits;
+            for (int i = 0; i < size; ++i) {
+                int xi = bi1[i], yi = bi2[i];
+               
+                for (int k = 0; k < 2; ++k) {
+                    pLits[0] = Bmatch_toLitCond(yi * mi + xi * 2 + k, 1);
+                    for (int j = 0; j < size; ++j) {
+                        if (i == j) continue;
+                        int xj = bi1[j], yj = bi2[j];
+
+                        //printf("(%d %d) -> (%d %d) (%d %d)\n", yi, xi * 2 + k, yj, xj * 2, yj, xj * 2 + 1);
+                        pLits[1] = Bmatch_toLit(yj * mi + xj * 2);
+                        pLits[2] = Bmatch_toLit(yj * mi + xj * 2 + 1);
+                        Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 3);
+                    }
+                }
+            }
+            for (int i = 0; i < size; ++i) {
+                int xi = bi1[i], yi = bi2[size - 1 - i];
+               
+                for (int k = 0; k < 2; ++k) {
+                    pLits[0] = Bmatch_toLitCond(yi * mi + xi * 2 + k, 1);
+                    for (int j = 0; j < size; ++j) {
+                        if (i == size - 1 - j) continue;
+                        int xj = bi1[j], yj = bi2[size - 1 - j];
+
+                        //printf("(%d %d) -> (%d %d) (%d %d)\n", yi, xi * 2 + k, yj, xj * 2, yj, xj * 2 + 1);
+                        pLits[1] = Bmatch_toLit(yj * mi + xj * 2);
+                        pLits[2] = Bmatch_toLit(yj * mi + xj * 2 + 1);
+                        Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 3);
+                    }
+                }
+            }
+        }
+    }
+
+    return 1;
 }
 
 int Bmatch_PruneInputSolverByUnate(Bmatch_Man_t *pMan, vMatch &MO) {

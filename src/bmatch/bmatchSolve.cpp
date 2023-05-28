@@ -29,7 +29,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 
 // x2
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
-// #define OUTPUT_MAPPING vMatch MO_test = {{Literal(0, false)}, {Literal(1, false)}, {Literal(2, false)}, {Literal(3, false)}};
+//#define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {}, {}};
 // #define OUTPUT_MAPPING vMatch MO_test = {{}, {Literal(1, false)}, {}, {}};
 // case 0
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
@@ -41,26 +41,29 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
 
 // case 15
-#define OUTPUT_MAPPING vMatch MO = {{Literal(8)}, {Literal(0)}, {Literal(2)}, {Literal(4)}, {Literal(5)}, {Literal(3)}, {Literal(1)}, {Literal(9)}, {Literal(6)}, {Literal(7)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(8)}, {Literal(0)}, {Literal(2)}, {Literal(4)}, {Literal(5)}, {Literal(3)}, {Literal(1)}, {Literal(9)}, {Literal(6)}, {Literal(7)}};
 
 // case 16
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
+#define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
+//#define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
+
 OUTPUT_MAPPING
 
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
-    int maxIter = 5000, iter = 0, tried = 0, best = 0;
+    int maxIter = 40000, iter = 0, tried = 0, best = 0;
     int ret = 1;
     EcResult result;
 
     Abc_NtkPrintIo(stdout, pNtk1, 0);
     Abc_NtkPrintIo(stdout, pNtk2, 0);
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
+    //if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
+    //if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
+    //if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
+    //if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
 
     int inputSolverMode = 0;
     if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
@@ -100,8 +103,10 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByUnate(pMan, MO_new);
+        //ret &= Bmatch_PruneInputSolverByBusOrdered(pMan, pNtk1, pNtk2);
+        //ret &= Bmatch_PruneInputSolverByBusExactMap(pMan, pNtk1, pNtk2);
         ret &= Bmatch_ApplyInputSolverRowConstraint(pMan, pNtk1, pNtk2);
-        
+
         if (inputSolverMode == 2) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
 
         while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
@@ -133,7 +138,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
                 printf("Optimal: %d Current: %d\n", 2*Abc_NtkPoNum(pNtk2), best = score);
             }
         } else {
-            if (option & VERBOSE_DETAIL_MASK) {
+            if (option & VERBOSE_MASK) {
                 if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
                 else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
             }

@@ -1339,13 +1339,15 @@ int Ver_ParseGateStandard( Ver_Man_t * pMan, Abc_Ntk_t * pNtk, Ver_GateType_t Ga
         return 0;
     Ver_StreamMove( p );
 
+    while (Ver_StreamPopChar(p) != '(');
+
     // this is gate name - throw it away
-    if ( Ver_StreamPopChar(p) != '(' )
-    {
-        sprintf( pMan->sError, "Cannot parse a standard gate (expected opening parenthesis)." );
-        Ver_ParsePrintErrorMessage( pMan );
-        return 0;
-    }
+    //if ( Ver_StreamPopChar(p) != '(' )
+    //{
+    //    sprintf( pMan->sError, "Cannot parse a standard gate (expected opening parenthesis)." );
+    //    Ver_ParsePrintErrorMessage( pMan );
+    //    return 0;
+    //}
     Ver_ParseSkipComments( pMan );
 
     // create the node
