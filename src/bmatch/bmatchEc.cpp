@@ -4,6 +4,8 @@
 #include "aig/aig/aig.h"
 #include "proof/fraig/fraig.h"
 #include "sat/cnf/cnf.h"
+#include "base/io/ioAbc.h"
+#include "proof/cec/cec.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -11,15 +13,185 @@ ABC_NAMESPACE_IMPL_START
 extern "C" {
 #endif
 
-extern Aig_Man_t *Abc_NtkToDar( Abc_Ntk_t *pNtk, int fExors, int fRegisters );
+/*=== base/abci/abcDar.c ==============================================*/
+extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
+extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
+
+/*=== aig/gia/giaAig.c ================================================*/
+extern Gia_Man_t * Gia_ManFromAig( Aig_Man_t * p );
+
 static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel, vMatch &MI, vMatch &MO);
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat);
 int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 
+int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf);
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset = 0);
+CaDiCaL::Solver *Bmatch_ControllableInputOutputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int &controlPiOffset);
+CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &controlPiOffset);
+EcResult Bmatch_NtkControllableInputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
+EcResult Bmatch_NtkControllableInputOutputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+
+EcResult Bmatch_NtkEcGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+
 #ifdef __cplusplus
 }
 #endif
+
+EcResult Bmatch_NtkEcGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
+    auto *pNtkMiter = Bmatch_NtkGiaMiter(pNtk1, pNtk2, MI, MO);
+    pNtkMiter = Abc_NtkDC2(pNtkMiter, 0, 0, 1, 0, 0);
+    Aig_Man_t * pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
+    Gia_Man_t * pGia = Gia_ManFromAig(pAig);
+    Cec_ParCec_t ParsCec, * pPars = &ParsCec;
+    Cec_ManCecSetDefaultParams(pPars);
+    pPars->fSilent = 1;
+
+    int status = Cec_ManVerify(pGia, pPars);
+
+    Gia_ManStop(pGia);
+    Aig_ManStop(pAig);
+    Abc_NtkDelete(pNtkMiter);
+
+    if (status == 0 || status == -1) {
+        return {NON_EQUIVALENT, (int*)1};
+    }
+
+    return {EQUIVALENT, NULL};
+}
+
+EcResult Bmatch_NtkControllableInputOutputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
+    auto &pMiterSolver = pMan->pMiterSolverNew;
+    auto controlOffset = pMan->controlOffset;
+
+    int nControlPi = (int)(std::ceil(std::log2(Abc_NtkPiNum(pNtk1) + 1))); // nPi + const (not include inv)
+    int nControlPo = (int)(std::ceil(std::log2(Abc_NtkPoNum(pNtk1) + 1))); // nPo + nonmap (not include inv)
+    AutoBuffer<int> ioControl((nControlPi + 1) * Abc_NtkPiNum(pNtk2) + (nControlPo + 1) * Abc_NtkPoNum(pNtk2), 0);
+
+    int count = 0;
+    for (int xi = 0; xi < MI.size(); ++xi) {
+        for (auto y : MI[xi]) {
+            int x = xi;
+            int yi = y.var();
+            for (int k = 0; k < nControlPi; ++k, x >>= 1) {
+                ioControl[count++] = Bmatch_toLitCond(yi * (nControlPi + 1) + k + controlOffset, !(x & 1));
+            }
+            ioControl[count++] = Bmatch_toLitCond(yi * (nControlPi + 1) + nControlPi + controlOffset, !(y.sign()));
+        }
+    }
+
+    int controlPiOffset = (nControlPi + 1) * Abc_NtkPiNum(pNtk2) + controlOffset;
+    AutoBuffer<int> mappedPo(Abc_NtkPoNum(pNtk2), 0);
+    for (int fi = 0; fi < MO.size(); ++fi) {
+        for (auto g : MO[fi]) {
+            int f = fi;
+            int gi = g.var();
+            mappedPo[gi] = 1;
+            for (int k = 0; k < nControlPo; ++k, f >>= 1) {
+                ioControl[count++] = Bmatch_toLitCond(gi * (nControlPo + 1) + k + controlPiOffset, !(f & 1));
+            }
+            ioControl[count++] = Bmatch_toLitCond(gi * (nControlPo + 1) + nControlPo + controlPiOffset, !(g.sign()));
+        }
+    }
+    for (int gi = 0; gi < mappedPo.size(); ++gi) {
+        if (!mappedPo[gi]) {
+            int f = Abc_NtkPoNum(pNtk1);
+            for (int k = 0; k < nControlPo; ++k, f >>= 1) {
+                ioControl[count++] = Bmatch_toLitCond(gi * (nControlPo + 1) + k + controlPiOffset, !(f & 1));
+            }
+            ioControl[count++] = Bmatch_toLitCond(gi * (nControlPo + 1) + nControlPo + controlPiOffset, 0);
+        }
+    }
+
+    assert(count == ioControl.size());
+    
+    int status = Bmatch_sat_solver_solve(pMiterSolver, ioControl, ioControl + ioControl.size(), 0, 0, 0, 0);
+    
+    if (status == 10) {
+        int *pModel1 = ABC_ALLOC(int, Abc_NtkPiNum(pNtk1));
+        for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+            pModel1[i] = Bmatch_sat_solver_var_value(pMiterSolver, (nControlPi + 1) * Abc_NtkPiNum(pNtk2) + (nControlPo + 1) * Abc_NtkPoNum(pNtk2) + controlOffset + i);
+        }
+        return {NON_EQUIVALENT, pModel1};
+    }
+
+    return {EQUIVALENT, NULL};
+}
+
+EcResult Bmatch_NtkControllableInputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI) {
+    auto &pMiterSolver = pMan->pMiterSolver;
+    auto &controlOffset = pMan->controlOffset;
+
+    int nControlPi = (int)(std::ceil(std::log2(Abc_NtkPiNum(pNtk1) + 1)));
+    AutoBuffer<int> inputControl((nControlPi + 1) * Abc_NtkPiNum(pNtk2), 0);
+
+    int count = 0;
+    for (int xi = 0; xi < MI.size(); ++xi) {
+        for (auto y : MI[xi]) {
+            int x = xi;
+            int yi = y.var();
+            for (int k = 0; k < nControlPi; ++k, x >>= 1) {
+                inputControl[count++] = Bmatch_toLitCond(yi * (nControlPi + 1) + k + controlOffset, !(x & 1));
+            }
+            inputControl[count++] = Bmatch_toLitCond(yi * (nControlPi + 1) + nControlPi + controlOffset, !(y.sign()));
+        }
+    }
+    
+    int status = Bmatch_sat_solver_solve(pMiterSolver, inputControl, inputControl + inputControl.size(), 0, 0, 0, 0);
+    
+    if (status == 10) {
+        int *pModel1 = ABC_ALLOC(int, Abc_NtkPiNum(pNtk1));
+        for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+            pModel1[i] = Bmatch_sat_solver_var_value(pMiterSolver, (nControlPi + 1) * Abc_NtkPiNum(pNtk2) + controlOffset + i);
+        }
+        return {NON_EQUIVALENT, pModel1};
+    }
+
+    return {EQUIVALENT, NULL};
+}
+
+CaDiCaL::Solver *Bmatch_ConvertNtk2Sat(Abc_Ntk_t *pNtk, int &controlPiOffset) {
+    Aig_Man_t *pMan = Abc_NtkToDar(pNtk, 0, 0);
+    Cnf_Dat_t *pCnf;
+    CaDiCaL::Solver *pSat;
+
+    assert(Aig_ManRegNum(pMan) == 0);
+    pMan->pData = NULL;
+
+    // derive CNF
+    pCnf = Cnf_Derive(pMan, Aig_ManCoNum(pMan));
+    controlPiOffset = pCnf->pVarNums[Abc_NtkPi(pNtk, 0)->Id];
+
+    // FlipBits
+    Cnf_DataTranformPolarity(pCnf, 0);
+
+    // write CNF
+    pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf, 0);
+    if (pSat == NULL) {
+        Cnf_DataFree( pCnf );
+        return NULL;
+    }
+    Bmatch_Cnf_DataWriteOrClause(pSat, pCnf);
+
+    Cnf_DataFree(pCnf);
+
+    int status = Bmatch_sat_solver_simplify(pSat);
+
+    if (status == 20) {
+        Bmatch_sat_solver_delete(pSat);
+        return NULL;
+    }
+
+    return pSat;
+}
+
+CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &controlPiOffset) {
+    return Bmatch_ConvertNtk2Sat(Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO), controlPiOffset);
+}
+
+CaDiCaL::Solver *Bmatch_ControllableInputOutputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int &controlPiOffset) {
+    return Bmatch_ConvertNtk2Sat(Bmatch_NtkControllableInputOutputMiter(pNtk1, pNtk2), controlPiOffset);
+}
 
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose) {
     abctime clk = Abc_Clock();
@@ -101,16 +273,16 @@ int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat) {
     return RetValue;
 }
 
-CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p) {
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset) {
     CaDiCaL::Solver *pSat = pSolver;
     int i, f, status;
     assert(pSat);
 
-    Bmatch_sat_solver_setnvars(pSat, p->nVars);
+    Bmatch_sat_solver_setnvars(pSat, p->nVars + offset);
     for (i = 0; i < p->nClauses; i++) {
         AutoBuffer<int> pLits(p->pClauses[i + 1] - p->pClauses[i]);
         for (int j = 0, *k = p->pClauses[i]; j < pLits.size(); ++j, ++k) {
-            pLits[j] = Bmatch_toLitCond((*k) >> 1, (*k) & 1);
+            pLits[j] = Bmatch_toLitCond(((*k) >> 1) + offset, (*k) & 1);
         }
         Bmatch_sat_solver_addclause(pSat, pLits, pLits + pLits.size());
     }
@@ -155,6 +327,7 @@ int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose) {
         Abc_PrintTime(1, "Time", Abc_Clock() - clk);
     }
 
+    // write CNF
     pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf);
     if (pSat == NULL) {
         Cnf_DataFree( pCnf );

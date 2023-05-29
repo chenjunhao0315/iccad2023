@@ -7,4 +7,5 @@ SRC += src/bmatch/bmatch.cpp         \
        src/bmatch/bmatchMiter.cpp    \
        src/bmatch/bmatchEc.cpp       \
        src/bmatch/bmatchParser.cpp   \
-       src/bmatch/bmatchUnate.cpp
+       src/bmatch/bmatchUnate.cpp    \
+       src/bmatch/bmatchInputSolver.cpp
