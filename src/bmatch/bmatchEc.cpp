@@ -174,6 +174,7 @@ CaDiCaL::Solver *Bmatch_ConvertNtk2Sat(Abc_Ntk_t *pNtk, int &controlPiOffset) {
     Bmatch_Cnf_DataWriteOrClause(pSat, pCnf);
 
     Cnf_DataFree(pCnf);
+    Aig_ManStop(pMan);
 
     int status = Bmatch_sat_solver_simplify(pSat);
 
@@ -186,11 +187,17 @@ CaDiCaL::Solver *Bmatch_ConvertNtk2Sat(Abc_Ntk_t *pNtk, int &controlPiOffset) {
 }
 
 CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &controlPiOffset) {
-    return Bmatch_ConvertNtk2Sat(Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO), controlPiOffset);
+    auto *pMiter = Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO);
+    auto *pSat = Bmatch_ConvertNtk2Sat(pMiter, controlPiOffset);
+    Abc_NtkDelete(pMiter);
+    return pSat;
 }
 
 CaDiCaL::Solver *Bmatch_ControllableInputOutputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int &controlPiOffset) {
-    return Bmatch_ConvertNtk2Sat(Bmatch_NtkControllableInputOutputMiter(pNtk1, pNtk2), controlPiOffset);
+    auto *pMiter = Bmatch_NtkControllableInputOutputMiter(pNtk1, pNtk2);
+    auto *pSat = Bmatch_ConvertNtk2Sat(pMiter, controlPiOffset);
+    Abc_NtkDelete(pMiter);
+    return pSat;
 }
 
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose) {

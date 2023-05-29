@@ -233,7 +233,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m){
     int cont = 0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<m; j++){
-            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLit(i*m+j)) == LearnedAssumption.end() & \
+            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLit(i*m+j)) == LearnedAssumption.end() && \
                 std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLitCond(i*m+j, 1)) == LearnedAssumption.end()){
                 pLits[cont] = Bmatch_toLit(i*m+j);
                 cont++;
