@@ -3,6 +3,7 @@
 #include "print.hpp"
 
 #include "base/io/ioAbc.h"
+#include "aig/gia/giaAig.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -14,10 +15,16 @@ extern "C" {
 // ckt1[0] = {ckt2[?], ckt2[?]}
 // ckt1[1] = {ckt2[?]}
 
+/*=== base/abci/abcDar.c ==============================================*/
+extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
 extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
 
+/*=== aig/gia/giaAig.c ================================================*/
+extern Gia_Man_t * Gia_ManFromAig( Aig_Man_t * p );
+
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
-Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+Abc_Ntk_t *Bmatch_NtkMiterGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int inv);
 Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 int  Bmatch_NtkMiterCheck(vMatch &MI, vMatch &MO, Abc_Ntk_t *pNtk2);
 void Bmatch_NtkMiterPrepare(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtkMiter, vMatch &MI, vMatch &MO);
@@ -140,7 +147,84 @@ void Bmatch_NtkMiterFinalize(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Abc_Ntk_t *pNtk
     Vec_PtrFree(vPairs);
 }
 
-Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+Abc_Ntk_t *Bmatch_NtkGiaMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
+    assert(Abc_NtkIsDfsOrdered(pNtk1));
+    assert(Abc_NtkIsDfsOrdered(pNtk2));
+    char Buffer[1000];
+    Abc_Ntk_t * pNtkMiter;
+    pNtkMiter = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
+    sprintf(Buffer, "%s_%s_miter", pNtk1->pName, pNtk2->pName);
+    Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
+    Abc_Aig_t *pMan = (Abc_Aig_t *)pNtkMiter->pManFunc;
+    int i;
+    Abc_Obj_t *pObj, *pObjTemp, *pObjNew;
+
+    Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
+    Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);
+
+    // MI
+    Abc_NtkForEachCi(pNtk1, pObj, i) {
+        pObjNew = Abc_NtkCreatePi(pNtkMiter);
+        sprintf(Buffer, "_ntk1");
+        Abc_ObjAssignName(pObjNew, Abc_ObjName(pObj), Buffer);
+        pObj->pCopy = pObjNew;
+
+        for (auto &p : MI[i]) {
+            pObj = Abc_NtkPi(pNtk2, p.var());
+            pObj->pCopy = (p.sign()) ? Abc_ObjNot(pObjNew) : pObjNew;
+        }
+    }
+    for (auto &p : MI.back()) {
+        pObj = Abc_NtkPi(pNtk2, p.var());
+        pObj->pCopy = (p.sign()) ? Abc_ObjNot(Abc_AigConst1(pNtkMiter)) : Abc_AigConst1(pNtkMiter);
+    }
+
+    // MO
+    int count = 0;
+    for (auto &mo : MO) {
+        for (int i = 0; i < mo.size(); ++i) {
+            pObjNew = Abc_NtkCreatePo(pNtkMiter);
+            sprintf(Buffer, "miter_cir1_");
+            Abc_ObjAssignName(pObjNew, Buffer, (char*)std::to_string(count++).c_str());
+            pObjNew = Abc_NtkCreatePo(pNtkMiter);
+            sprintf(Buffer, "miter_cir2_");
+            Abc_ObjAssignName(pObjNew, Buffer, (char*)std::to_string(count++).c_str());
+        }
+    }
+
+    // Construct
+    Bmatch_NtkMiterAddOne(pNtk1, pNtkMiter);
+    Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
+
+    // Miter
+    count = 0;
+    Abc_NtkForEachCo(pNtk1, pObj, i) {
+        if (!MO[i].empty()) {
+            pObjTemp = Abc_ObjChild0Copy(pObj);
+            for (int j = 0; j < MO[i].size(); ++j) {
+                pObj = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, MO[i][j].var()));
+                pObj = (MO[i][j].sign()) ? Abc_ObjNot(pObj) : pObj;
+                Abc_ObjAddFanin(Abc_NtkPo(pNtkMiter, count++), pObjTemp);
+                Abc_ObjAddFanin(Abc_NtkPo(pNtkMiter, count++), pObj);
+            }
+        }
+    }
+    assert(2 * count == Abc_NtkPoNum(pNtkMiter));
+
+    // Cleanup
+    Abc_AigCleanup(pMan);
+
+    if (!Abc_NtkCheck(pNtkMiter)) {
+        Abc_Print(-1, "Bmatch_NtkMiter: The network check has failed.\n");
+        Abc_NtkDelete(pNtkMiter);
+
+        return NULL;
+    }
+
+    return pNtkMiter;
+}
+
+Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int inv) {
     assert(Abc_NtkIsDfsOrdered(pNtk1));
     assert(Abc_NtkIsDfsOrdered(pNtk2));
     char Buffer[1000];
@@ -203,7 +287,24 @@ Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, 
     Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
 
     // Finalize
-    Bmatch_NtkMiterFinalize(pNtk1, pNtk2, pNtkMiter, MO);
+    if (!inv) Bmatch_NtkMiterFinalize(pNtk1, pNtk2, pNtkMiter, MO);
+    else {
+        std::vector<Abc_Obj_t *> Xnors;
+        Abc_NtkForEachCo(pNtk1, pObj, i) {
+            if (!MO[i].empty()) {
+                pObjTemp = Abc_ObjChild0Copy(pObj);
+                for (int j = 0; j < MO[i].size(); ++j) {
+                    pObj = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, MO[i][j].var()));
+                    pObj = (MO[i][j].sign()) ? Abc_ObjNot(pObj) : pObj;
+                    pObjNew = Abc_ObjNot(Abc_AigXor(pMan, pObjTemp, pObj));
+                    Xnors.push_back(pObjNew);
+                }
+            }
+        }
+        pObj = Bmatch_NtkCreateAnd(pMan, Xnors);
+        Abc_ObjAddFanin(Abc_NtkPo(pNtkMiter, 0), pObj);
+    }
+
 
     // Cleanup
     Abc_AigCleanup((Abc_Aig_t*)pNtkMiter->pManFunc);
