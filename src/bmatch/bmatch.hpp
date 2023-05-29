@@ -183,18 +183,21 @@ extern int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI);
 extern int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO);
 extern InputMapping Bmatch_HeuristicSolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
+extern InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 // bmatchEc.cpp
 extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 extern EcResult Bmatch_NtkControllableInputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
 extern EcResult Bmatch_NtkControllableInputOutputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+extern EcResult Bmatch_NtkEcGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 extern CaDiCaL::Solver *Bmatch_ControllableInputOutputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int &controlPiOffset);
 extern CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &controlPiOffset);
 
 // bmatchMiter.cpp
-extern Abc_Ntk_t* Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
-extern Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+extern Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+extern Abc_Ntk_t *Bmatch_NtkControllableInputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int inv = 0);
 extern Abc_Ntk_t *Bmatch_NtkControllableInputOutputMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern Abc_Ntk_t *Bmatch_NtkGiaMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 
 // bmatchSetup.cpp
 extern void Bmatch_NtkSetup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);

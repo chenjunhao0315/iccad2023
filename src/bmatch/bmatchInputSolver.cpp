@@ -2,11 +2,23 @@
 
 #include "print.hpp"
 
+#include "aig/gia/giaAig.h"
+
 ABC_NAMESPACE_IMPL_START
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*=== base/abci/abcDar.c ==============================================*/
+extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
+extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
+
+/*=== aig/gia/giaAig.c ================================================*/
+extern Gia_Man_t * Gia_ManFromAig( Aig_Man_t * p );
+
+/*=== aig/gia/giaQbf.c ================================================*/
+extern int Gia_QbfSolveValue( Gia_Man_t * pGia, Vec_Int_t * vValues, int nPars, int nIterLimit, int nConfLimit, int nTimeOut, int fGlucose, int fVerbose );
 
 void Bmatch_InitControllableInputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_InitControllableInputOutputMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
@@ -23,6 +35,7 @@ int Bmatch_PruneInputSolverBySymmetry(Bmatch_Man_t *pMan, vMatch &MI);
 int Bmatch_PruneInputSolverByCounterPart(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel1, vMatch& MI, vMatch& MO);
 InputMapping Bmatch_HeuristicSolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
+InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 #ifdef __cplusplus
 }
@@ -56,6 +69,55 @@ void Bmatch_InitInputControl(Bmatch_Man_t *pMan, int offset) {
             inputControl[i * pMan->mi + j] = Bmatch_toLitCond(i * pMan->mi + j + offset, 1);
         }
     }
+}
+
+InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+    vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
+    Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO, 1);
+    Aig_Man_t *pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
+    Gia_Man_t *pGia = Gia_ManFromAig(pAig);
+
+    int nControlPi = (int)(std::ceil(std::log2(Abc_NtkPiNum(pNtk1) + 1))); // nPi + const (not include inv)
+    int nPars = (nControlPi + 1) * Abc_NtkPiNum(pNtk2);
+
+    // printf("nPars: %d\n", nPars);
+    // Abc_NtkPrintIo(stdout, pNtkMiter, 0);
+
+    Vec_Int_t *vControl = Vec_IntAlloc(nPars);
+    for (int i = 0; i < nPars; ++i)
+        Vec_IntSetEntry(vControl, i, i);
+    int result = Gia_QbfSolveValue(pGia, vControl, nPars, 1024, 0, 100, 0, 0);
+
+    Gia_ManStop(pGia);
+    Aig_ManStop(pAig);
+    Abc_NtkDelete(pNtkMiter);
+
+    int RetValue = 1;
+    if (result == 1) {
+        RetValue = 0;
+    } else if (result == 0) {
+        for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+            int decode = 0;
+            for (int j = nControlPi - 1; j >= 0; --j) {
+                int value = (1 << j) * Vec_IntEntry(vControl, i * (nControlPi + 1) + j);
+                decode += value;
+                if (decode >= Abc_NtkPiNum(pNtk2) + 1)
+                    decode -= value;
+            }
+            decode = decode * 2 + Vec_IntEntry(vControl, i * (nControlPi + 1) + nControlPi);
+            // printf("Decode: %d %d\n", decode, pMan->mi);
+            for (int j = 0; j < pMan->mi; ++j) {
+                if (j == decode) {
+                    // printf("Resize: %d\n", resize);
+                    MI[decode / 2].push_back(Literal(i, decode & 1));
+                }
+            }
+        }
+    }
+
+    Vec_IntFree(vControl);
+
+    return {RetValue, MI};
 }
 
 InputMapping Bmatch_HeuristicSolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {

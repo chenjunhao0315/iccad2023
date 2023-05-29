@@ -5,6 +5,7 @@
 #include "proof/fraig/fraig.h"
 #include "sat/cnf/cnf.h"
 #include "base/io/ioAbc.h"
+#include "proof/cec/cec.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -12,7 +13,13 @@ ABC_NAMESPACE_IMPL_START
 extern "C" {
 #endif
 
-extern Aig_Man_t *Abc_NtkToDar( Abc_Ntk_t *pNtk, int fExors, int fRegisters );
+/*=== base/abci/abcDar.c ==============================================*/
+extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
+extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
+
+/*=== aig/gia/giaAig.c ================================================*/
+extern Gia_Man_t * Gia_ManFromAig( Aig_Man_t * p );
+
 static void Bmatch_NtkVerifyReportError(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *pModel, vMatch &MI, vMatch &MO);
 int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat);
 int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
@@ -25,9 +32,33 @@ CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
 EcResult Bmatch_NtkControllableInputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
 EcResult Bmatch_NtkControllableInputOutputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 
+EcResult Bmatch_NtkEcGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+
 #ifdef __cplusplus
 }
 #endif
+
+EcResult Bmatch_NtkEcGia(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
+    auto *pNtkMiter = Bmatch_NtkGiaMiter(pNtk1, pNtk2, MI, MO);
+    pNtkMiter = Abc_NtkDC2(pNtkMiter, 0, 0, 1, 0, 0);
+    Aig_Man_t * pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
+    Gia_Man_t * pGia = Gia_ManFromAig(pAig);
+    Cec_ParCec_t ParsCec, * pPars = &ParsCec;
+    Cec_ManCecSetDefaultParams(pPars);
+    pPars->fSilent = 1;
+
+    int status = Cec_ManVerify(pGia, pPars);
+
+    Gia_ManStop(pGia);
+    Aig_ManStop(pAig);
+    Abc_NtkDelete(pNtkMiter);
+
+    if (status == 0 || status == -1) {
+        return {NON_EQUIVALENT, (int*)1};
+    }
+
+    return {EQUIVALENT, NULL};
+}
 
 EcResult Bmatch_NtkControllableInputOutputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
     auto &pMiterSolver = pMan->pMiterSolverNew;

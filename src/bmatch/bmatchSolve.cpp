@@ -52,26 +52,25 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 OUTPUT_MAPPING
 
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option) {
-    int maxIter = 40000, iter = 0, tried = 0, best = 0;
+    int maxIter = 100000, iter = 0, tried = 0, best = 0;
     int ret = 1;
     EcResult result;
 
     Abc_NtkPrintIo(stdout, pNtk1, 0);
     Abc_NtkPrintIo(stdout, pNtk2, 0);
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
-    //if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
     if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
-    //if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
-    //if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
-    //if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
+    if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
 
     int inputSolverMode = 0;
     if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
-        else
-            inputSolverMode = 2;
     }
+    // inputSolverMode = 3;
 
     //preprocess
     if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
@@ -103,23 +102,30 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
         ret &= Bmatch_PruneInputSolverByUnate(pMan, MO_new);
-        //ret &= Bmatch_PruneInputSolverByBusOrdered(pMan, pNtk1, pNtk2);
-        //ret &= Bmatch_PruneInputSolverByBusExactMap(pMan, pNtk1, pNtk2);
+        // ret &= Bmatch_PruneInputSolverByBusOrdered(pMan, pNtk1, pNtk2);
+        // ret &= Bmatch_PruneInputSolverByBusExactMap(pMan, pNtk1, pNtk2);
         ret &= Bmatch_ApplyInputSolverRowConstraint(pMan, pNtk1, pNtk2);
 
         if (inputSolverMode == 2) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
 
-        while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
-            ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
-            ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
-            if (!ret) break;
-            auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
-            if (Mapping.status == 0) break;
+        if (inputSolverMode == 3) {
+            auto Mapping = Bmatch_SolveInputQbf(pMan, pNtk1, pNtk2, MO_new);
+            result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             MI = Mapping.MI;
+        } else {
+            while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
+                ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
+                ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
+                if (!ret) break;
+                auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+                if (Mapping.status == 0) break;
+                MI = Mapping.MI;
 
-            result = (inputSolverMode == 1) ? Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO_new)
-                   : (inputSolverMode == 2) ? Bmatch_NtkControllableInputEcFraig(pMan, pNtk1, pNtk2, MI)
-                   :                          Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
+                // result = Bmatch_NtkEcGia(pNtk1, pNtk2, MI, MO_new); // trash
+                result = (inputSolverMode == 1) ? Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO_new)
+                       : (inputSolverMode == 2) ? Bmatch_NtkControllableInputEcFraig(pMan, pNtk1, pNtk2, MI)
+                       :                          Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
+            }
         }
 
         Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);

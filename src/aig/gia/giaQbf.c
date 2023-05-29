@@ -945,6 +945,86 @@ int Gia_QbfSolve( Gia_Man_t * pGia, int nPars, int nIterLimit, int nConfLimit, i
     return RetValue;
 }
 
+/**Function*************************************************************
+
+  Synopsis    [Performs QBF solving using an improved algorithm.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Gia_QbfSolveValue( Gia_Man_t * pGia, Vec_Int_t * vValues, int nPars, int nIterLimit, int nConfLimit, int nTimeOut, int fGlucose, int fVerbose )
+{
+    Qbf_Man_t * p = Gia_QbfAlloc( pGia, nPars, fGlucose, fVerbose );
+    Gia_Man_t * pCof;
+    int i, status, RetValue = 0;
+    abctime clk;
+//    Gia_QbfAddSpecialConstr( p );
+    if ( fVerbose )
+        printf( "Solving QBF for \"%s\" with %d parameters, %d variables and %d AIG nodes.\n", 
+            Gia_ManName(pGia), p->nPars, p->nVars, Gia_ManAndNum(pGia) );
+    assert( Gia_ManRegNum(pGia) == 0 );
+    Vec_IntFill( p->vValues, nPars, 0 );
+    Vec_IntFill( vValues, nPars, 0 );
+    for ( i = 0; Gia_QbfVerify(p, p->vValues); i++ )
+    {
+        // generate next constraint
+        assert( Vec_IntSize(p->vValues) == p->nVars );
+        pCof = Gia_QbfCofactor( pGia, nPars, p->vValues, p->vParMap );
+        status = Gia_QbfAddCofactor( p, pCof );
+        Gia_ManStop( pCof );
+        if ( status == 0 )       { RetValue =  1; break; }
+        // synthesize next assignment
+        clk = Abc_Clock();
+        status = sat_solver_solve( p->pSatSyn, NULL, NULL, (ABC_INT64_T)nConfLimit, 0, 0, 0 );
+        p->clkSat += Abc_Clock() - clk;
+        if ( fVerbose )
+            Gia_QbfPrint( p, p->vValues, i );
+        if ( status == l_False ) { RetValue =  1; break; }
+        if ( status == l_Undef ) { RetValue = -1; break; }
+        // extract SAT assignment
+        Gia_QbfOnePattern( p, p->vValues );
+        Gia_QbfOnePattern( p, vValues );
+        assert( Vec_IntSize(p->vValues) == p->nPars );
+        // examine variables
+//        Gia_QbfLearnConstraint( p, p->vValues );
+//        Vec_IntPrintBinary( p->vValues ); printf( "\n" );
+        if ( nIterLimit && i+1 == nIterLimit ) { RetValue = -1; break; }
+        if ( nTimeOut && (Abc_Clock() - p->clkStart)/CLOCKS_PER_SEC >= nTimeOut ) { RetValue = -1; break; }
+    }
+    if ( RetValue == 0 && fVerbose)
+    {
+        int nZeros = Vec_IntCountZero( p->vValues );
+        printf( "Parameters: " );
+        assert( Vec_IntSize(p->vValues) == nPars );
+        Vec_IntPrintBinary( p->vValues );
+        printf( "  Statistics: 0=%d 1=%d\n", nZeros, Vec_IntSize(p->vValues) - nZeros );
+        
+    }
+    if ( fVerbose )
+    {
+        if ( RetValue == -1 && nTimeOut && (Abc_Clock() - p->clkStart)/CLOCKS_PER_SEC >= nTimeOut )
+            printf( "The problem timed out after %d sec.  ", nTimeOut );
+        else if ( RetValue == -1 && nConfLimit )
+            printf( "The problem aborted after %d conflicts.  ", nConfLimit );
+        else if ( RetValue == -1 && nIterLimit )
+            printf( "The problem aborted after %d iterations.  ", nIterLimit );
+        else if ( RetValue == 1 )
+            printf( "The problem is UNSAT after %d iterations.  ", i );
+        else 
+            printf( "The problem is SAT after %d iterations.  ", i );
+        printf( "\n" );
+        Abc_PrintTime( 1, "SAT  ", p->clkSat );
+        Abc_PrintTime( 1, "Other", Abc_Clock() - p->clkStart - p->clkSat );
+        Abc_PrintTime( 1, "TOTAL", Abc_Clock() - p->clkStart );
+    }
+    Gia_QbfFree( p );
+    return RetValue;
+}
+
 ////////////////////////////////////////////////////////////////////////
 ///                       END OF FILE                                ///
 ////////////////////////////////////////////////////////////////////////
