@@ -46,8 +46,9 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 // case 16
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
-#define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
-//#define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
+#define OUTPUT_MAPPING vMatch MO = {{}, {}, {Literal(1)}, {Literal(3)}};
 
 OUTPUT_MAPPING
 
@@ -70,14 +71,14 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
     }
-    // inputSolverMode = 3;
+    inputSolverMode = 3;
 
     //preprocess
     if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
     Bmatch_SolveOutputGroup(pMan);
     Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
-    ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
+    // ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
 
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
 
@@ -392,10 +393,10 @@ int Bmatch_PruneOutputSolverByUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
             int nEquivUnate2 = nSupp2 + binate2[j];
             if (nSupp2 < nSupp1 || nEquivUnate2 < nEquivUnate1) {
                 int Lit = Bmatch_toLitCond(i * (2 * Abc_NtkPoNum(pNtk2)) + j * 2, 1);
-                // printf("(%d, %d) ", i, j * 2);
+                printf("(%d, %d) ", i, j * 2);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
                 Lit = Bmatch_toLitCond(i * (2 * Abc_NtkPoNum(pNtk2)) + j * 2 + 1, 1);
-                // printf("(%d, %d) ", i, j * 2 + 1);
+                printf("(%d, %d) ", i, j * 2 + 1);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
             }
         }
@@ -441,7 +442,8 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
 
     for(int l = 0; l< vGroup.size(); l++){
         auto Group_ntk1 = vGroup[l].first;
-        for(int k = l+1; k<vGroup.size(); k++){
+        for(int k = 0; k<vGroup.size(); k++){
+            if (k == l) continue;
             auto Group_ntk2 = vGroup[k].second;
             for(int i = 0;i<Group_ntk1.size(); i++){
                 for(int j = 0;j<Group_ntk2.size(); j++){

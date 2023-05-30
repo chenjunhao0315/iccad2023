@@ -44,6 +44,7 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 int Bmatch_PruneSynthesizerByImpossibleMI(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+int Bmatch_PruneSynthesizerByFunSupport(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 #ifdef __cplusplus
 }
@@ -97,6 +98,7 @@ InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
     CaDiCaL::Solver  *pSatSyn = pQbfMan->pSatSyn;
 
     Bmatch_PruneSynthesizerByImpossibleMI(pSatSyn, pMan, pNtk1, pNtk2, MO);
+    // Bmatch_PruneSynthesizerByFunSupport(pSatSyn, pMan, pNtk1, pNtk2, MO);
 
     int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vControl, nPars, 1024, 0, 100, 0, 0);
     Bmatch_Gia_QbfFree(pQbfMan);
@@ -167,21 +169,98 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     return {1, MI};
 }
 
+inline void Bmatch_EncodeControlSignal(int row, int col, int nControlPi, int fCompl, AutoBuffer<int> &pLits) {
+    int code = col / 2;
+    int sign = col & 1;
+    for (int k = 0; k < nControlPi; ++k, code >>= 1) {
+        pLits[k] = Bmatch_toLitCond(row * (nControlPi + 1) + k, (fCompl) ? code & 1 : !(code & 1));
+    }
+    pLits[nControlPi] = Bmatch_toLitCond(row * (nControlPi + 1) + nControlPi, (fCompl) ? sign : !sign);
+}
+
 int Bmatch_PruneSynthesizerByImpossibleMI(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     auto &impossibleMI = pMan->impossibleMI;
     int nControlPi = (int)(std::ceil(std::log2(Abc_NtkPiNum(pNtk1) + 1)));
-    
+    AutoBuffer<int> pLits(nControlPi + 1);
+
     for (int i = 0; i < pMan->ni; ++i) {
         for (int j = 0; j < pMan->mi; ++j) {
             if (impossibleMI[i * pMan->mi + j] == 0) continue;
-            AutoBuffer<int> pLits(nControlPi + 1);
-            int code = j / 2;
-            int sign = j & 1;
-            for (int k = 0; k < nControlPi; ++k, code >>= 1) {
-                pLits[k] = Bmatch_toLitCond(i * (nControlPi + 1) + k, code & 1);
-            }
-            pLits[nControlPi] = Bmatch_toLitCond(i * (nControlPi + 1) + nControlPi, sign);
+            Bmatch_EncodeControlSignal(i, j, nControlPi, 1, pLits);
             Bmatch_sat_solver_addclause(pSatSyn, pLits, pLits + pLits.size());
+        }
+    }
+
+    return 1;
+}
+
+void Bmatch_sat_solver_add_dnf_clause(CaDiCaL::Solver *pSolver, std::vector<AutoBuffer<int> > &dnf) {
+    AutoBuffer<int> ORs(dnf.size());
+    for (int i = 0; i < dnf.size(); ++i) {
+        auto &d = dnf[i];
+        assert(d.size() > 0);
+        // Tseytin transformation
+        int GateC = d[0];
+        if (d.size() > 1) {
+            AutoBuffer<int> pLits(d.size() + 1);
+            GateC = Bmatch_toLit(Bmatch_sat_solver_nvars(pSolver));
+            for (int i = 0; i < d.size(); ++i) {
+                pLits[i] = -d[i];
+            }
+            pLits[d.size()] = GateC;
+            Bmatch_sat_solver_addclause(pSolver, pLits, pLits + pLits.size());
+            pLits[0] = -GateC;
+            for (int i = 0; i < d.size(); ++i) {
+                pLits[1] = d[i];
+                Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
+            }
+        }
+        // for (int i = 1; i < d.size(); ++i) {
+        //     int GateB = d[i];
+        //     int GateC = Bmatch_toLit(Bmatch_sat_solver_nvars(pSolver));
+        //     pLits[0] = -GateC;
+        //     pLits[1] = GateA;
+        //     Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
+        //     pLits[1] = GateB;
+        //     Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
+        //     pLits[0] = GateC;
+        //     pLits[1] = -GateA;
+        //     pLits[2] = -GateB;
+        //     Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 3);
+        //     GateA = GateC;
+        // }
+        ORs[i] = GateC;
+    }
+    Bmatch_sat_solver_addclause(pSolver, ORs, ORs + ORs.size());
+}
+
+int Bmatch_PruneSynthesizerByFunSupport(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+    int ni = pMan->ni;
+    int mi = pMan->mi;
+    int nControlPi = (int)(std::ceil(std::log2(Abc_NtkPiNum(pNtk1) + 1)));
+
+    auto &oSupp1 = pMan->oFuncSupp1;
+    auto &oSupp2 = pMan->oFuncSupp2;
+
+    std::vector<AutoBuffer<int> > dnf;
+
+    for (int fi = 0; fi < MO.size(); ++fi) {
+        for (auto &gi : MO[fi]) {
+            auto &cond1 = oSupp1[fi];       // functional support of fi
+            auto &cond2 = oSupp2[gi.var()]; // functional support of gi
+
+            for (auto &m : cond1) {         // every support(fi)
+                int i = 0;
+                for (auto &n : cond2) {     // every support(gi)
+                    AutoBuffer<int> pLitsA(nControlPi + 1);
+                    Bmatch_EncodeControlSignal(n, m * 2, nControlPi, 0, pLitsA);
+                    AutoBuffer<int> pLitsB(nControlPi + 1);
+                    Bmatch_EncodeControlSignal(n, m * 2 + 1, nControlPi, 0, pLitsB);
+                    dnf.emplace_back(std::move(pLitsA));
+                    dnf.emplace_back(std::move(pLitsB));
+                }
+                Bmatch_sat_solver_add_dnf_clause(pSatSyn, dnf);
+            }
         }
     }
 
@@ -548,7 +627,9 @@ int Bmatch_PruneInputSolverByStrSupport(Bmatch_Man_t *pMan, vMatch &MO) {
                 for (auto &m : cond1) {
                     valid[n * mi + m * 2] = 1;
                     valid[n * mi + m * 2 + 1] = 1;
+                    // printf("(%d %d) (%d %d) ", n, m * 2, n, m * 2 + 1);
                 }
+                // printf("\n");
             }
         }
     }
