@@ -26,7 +26,7 @@ int Bmatch_FraigCadicalSat(Aig_Man_t *pMan, int fVerbose);
 EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);
 
 int Bmatch_Cnf_DataWriteOrClause(CaDiCaL::Solver *pSolver, Cnf_Dat_t *pCnf);
-CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset = 0);
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p);
 CaDiCaL::Solver *Bmatch_ControllableInputOutputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int &controlPiOffset);
 CaDiCaL::Solver *Bmatch_ControllableInputSat(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int &controlPiOffset);
 EcResult Bmatch_NtkControllableInputEcFraig(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI);
@@ -166,7 +166,7 @@ CaDiCaL::Solver *Bmatch_ConvertNtk2Sat(Abc_Ntk_t *pNtk, int &controlPiOffset) {
     Cnf_DataTranformPolarity(pCnf, 0);
 
     // write CNF
-    pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf, 0);
+    pSat = Bmatch_Cnf_DataWriteIntoSolver(Bmatch_sat_solver_new(), pCnf);
     if (pSat == NULL) {
         Cnf_DataFree( pCnf );
         return NULL;
@@ -280,16 +280,16 @@ int Bmatch_SatFraig(Abc_Ntk_t **ppNtk, int cadicalSat) {
     return RetValue;
 }
 
-CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p, int offset) {
+CaDiCaL::Solver *Bmatch_Cnf_DataWriteIntoSolver(CaDiCaL::Solver *pSolver, Cnf_Dat_t *p) {
     CaDiCaL::Solver *pSat = pSolver;
     int i, f, status;
     assert(pSat);
 
-    Bmatch_sat_solver_setnvars(pSat, p->nVars + offset);
+    Bmatch_sat_solver_setnvars(pSat, p->nVars);
     for (i = 0; i < p->nClauses; i++) {
         AutoBuffer<int> pLits(p->pClauses[i + 1] - p->pClauses[i]);
         for (int j = 0, *k = p->pClauses[i]; j < pLits.size(); ++j, ++k) {
-            pLits[j] = Bmatch_toLitCond(((*k) >> 1) + offset, (*k) & 1);
+            pLits[j] = Bmatch_toLitCond(((*k) >> 1), (*k) & 1);
         }
         Bmatch_sat_solver_addclause(pSat, pLits, pLits + pLits.size());
     }
