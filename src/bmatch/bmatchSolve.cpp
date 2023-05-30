@@ -78,7 +78,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
     Bmatch_SolveOutputGroup(pMan);
     Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
-    // ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
+    ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
 
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
 
@@ -392,11 +392,11 @@ int Bmatch_PruneOutputSolverByUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
             int nSupp2 = binate2[j] + unate2[j];
             int nEquivUnate2 = nSupp2 + binate2[j];
             if (nSupp2 < nSupp1 || nEquivUnate2 < nEquivUnate1) {
-                int Lit = Bmatch_toLitCond(i * (2 * Abc_NtkPoNum(pNtk2)) + j * 2, 1);
-                printf("(%d, %d) ", i, j * 2);
+                int Lit = Bmatch_toLitCond(j * (2 * Abc_NtkPoNum(pNtk2)) + i * 2, 1);
+                // printf("(%d, %d) ", j, i * 2);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
-                Lit = Bmatch_toLitCond(i * (2 * Abc_NtkPoNum(pNtk2)) + j * 2 + 1, 1);
-                printf("(%d, %d) ", i, j * 2 + 1);
+                Lit = Bmatch_toLitCond(j * (2 * Abc_NtkPoNum(pNtk2)) + i * 2 + 1, 1);
+                // printf("(%d, %d) ", j, i * 2 + 1);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
             }
         }

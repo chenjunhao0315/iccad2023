@@ -108,7 +108,7 @@ InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
     Abc_NtkDelete(pNtkMiter);
 
     int RetValue = 1;
-    if (result == 1) {
+    if (result == 1 || result == -1) {
         RetValue = 0;
     } else if (result == 0) {
         for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
