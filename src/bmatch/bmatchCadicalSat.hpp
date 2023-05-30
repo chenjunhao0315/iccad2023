@@ -60,4 +60,19 @@ static int *Bmatch_sat_solver_get_model(CaDiCaL::Solver *pSolver, int *pVars, in
     return pModel;
 }
 
+static inline int Bmatch_sat_solver_add_buffer(CaDiCaL::Solver *pSolver, int iVarA, int iVarB, int fCompl) {
+    int Lits[2];
+    assert( iVarA >= 0 && iVarB >= 0 );
+
+    Lits[0] = Bmatch_toLitCond( iVarA, 0 );
+    Lits[1] = Bmatch_toLitCond( iVarB, !fCompl );
+    Bmatch_sat_solver_addclause( pSolver, Lits, Lits + 2 );
+
+    Lits[0] = Bmatch_toLitCond( iVarA, 1 );
+    Lits[1] = Bmatch_toLitCond( iVarB, fCompl );
+    Bmatch_sat_solver_addclause( pSolver, Lits, Lits + 2 );
+
+    return 2;
+}
+
 #endif // BMATCH_CADICALSAT_HPP
