@@ -3,6 +3,7 @@
 #include "sat/bsat/satSolver.h"
 
 #include <math.h>
+#include<iostream>
 
 ABC_NAMESPACE_IMPL_START
 
@@ -39,6 +40,7 @@ void Bmatch_GetUnateCount(Mat &unateMat, int *Binate, int *Unate) {
             else if (unateness > 0)
                 ++Unate[i];
         }
+        // std::cout<<Binate[i]<<" "<<Unate[i]<<std::endl;
     }
 }
 
