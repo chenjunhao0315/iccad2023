@@ -5,4 +5,4 @@ fi
 
 make -j8
 
-./abc -c "bmatchgroup -v -r benchmark/case$1/input"
+./abc -c "bmatchgroup -v -r benchmark/case$1/input result.txt"
