@@ -7,4 +7,4 @@ make -j32 libabc.a
 gcc -Wall -g -c bmatch.c -o bmatch.o
 g++ -g -o bmatch bmatch.o libabc.a -lm -ldl -lreadline
 
-./bmatch $1
+./bmatch benchmark/case$1/input result.txt

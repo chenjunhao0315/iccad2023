@@ -9,4 +9,5 @@ SRC += src/bmatch/bmatch.cpp         \
        src/bmatch/bmatchParser.cpp   \
        src/bmatch/bmatchUnate.cpp    \
        src/bmatch/bmatchInputSolver.cpp \
-       src/bmatch/bmatchQbf.cpp
+       src/bmatch/bmatchQbf.cpp     \
+       src/bmatch/bmatchInputSolver2.cpp

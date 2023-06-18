@@ -46,6 +46,8 @@ InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
 int Bmatch_PruneSynthesizerByImpossibleMI(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 int Bmatch_PruneSynthesizerByFunSupport(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
+void Bmatch_EncodeControlSignal(int row, int col, int nControlPi, int fCompl, AutoBuffer<int> &pLits);
+
 #ifdef __cplusplus
 }
 #endif
@@ -115,9 +117,11 @@ InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
             int decode = 0;
             for (int j = nControlPi - 1; j >= 0; --j) {
                 int value = (1 << j) * Vec_IntEntry(vControl, i * (nControlPi + 1) + j);
-                decode += value;
-                if (decode >= Abc_NtkPiNum(pNtk2) + 1)
-                    decode -= value;
+                // decode += value;
+                // if (decode >= Abc_NtkPiNum(pNtk2) + 1)
+                //     decode -= value;
+                // printf("decode + value: %d Abc_NtkPiNum(pNtk1): %d\n", decode + value, Abc_NtkPiNum(pNtk1));
+                decode = std::min(decode + value, Abc_NtkPiNum(pNtk1));
             }
             decode = decode * 2 + Vec_IntEntry(vControl, i * (nControlPi + 1) + nControlPi);
             // printf("Decode: %d %d\n", decode, pMan->mi);
@@ -169,7 +173,7 @@ InputMapping Bmatch_SolveInput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
     return {1, MI};
 }
 
-inline void Bmatch_EncodeControlSignal(int row, int col, int nControlPi, int fCompl, AutoBuffer<int> &pLits) {
+void Bmatch_EncodeControlSignal(int row, int col, int nControlPi, int fCompl, AutoBuffer<int> &pLits) {
     int code = col / 2;
     int sign = col & 1;
     for (int k = 0; k < nControlPi; ++k, code >>= 1) {
@@ -190,6 +194,12 @@ int Bmatch_PruneSynthesizerByImpossibleMI(CaDiCaL::Solver *pSatSyn, Bmatch_Man_t
             Bmatch_sat_solver_addclause(pSatSyn, pLits, pLits + pLits.size());
         }
     }
+    // for (int i = 0; i < pMan->ni; ++i) {
+    //     for (int j = pMan->mi; j < (1 << (nControlPi + 1)); ++j) {
+    //         Bmatch_EncodeControlSignal(i, j, nControlPi, 1, pLits);
+    //         Bmatch_sat_solver_addclause(pSatSyn, pLits, pLits + pLits.size());
+    //     }
+    // }
 
     return 1;
 }

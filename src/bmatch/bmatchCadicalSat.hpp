@@ -12,7 +12,9 @@ static inline int Bmatch_toLitCond(int lit, int cond) {
 }
 
 static inline CaDiCaL::Solver *Bmatch_sat_solver_new() {
-    return new CaDiCaL::Solver();
+    CaDiCaL::Solver *s = new CaDiCaL::Solver();
+    s->set("quiet", 1);
+    return s;
 }
 
 static inline void Bmatch_sat_solver_delete(CaDiCaL::Solver *solver) {

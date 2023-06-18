@@ -48,17 +48,16 @@ static int Abc_CommandBmatch(Abc_Frame_t *pAbc, int argc, char **argv) {
 
     // reserve for reading group information
 
-    if (nArgc != 2) {
+    if (nArgc != 3) {
         Abc_Print(-1, "Invalid command!\n");
         goto usage;
     }
 
-    if (!Abc_NtkPrepareTwoNtks(stdout, NULL, nArgv, nArgc, &pNtk1, &pNtk2, &pDelete1, &pDelete2, 1)) {
-        return -1;
-    }
-
+    pMan->cir1 = std::string(nArgv[0]);
+    pMan->cir2 = std::string(nArgv[1]);
+    Bmatch_ReadNtk(pMan, &pNtk1, &pNtk2);
     Bmatch_Preprocess(pMan, pNtk1, pNtk2, option);
-    Bmatch_SolveNP3(pMan, pNtk1, pNtk2, option);
+    Bmatch_SolveNP3(pMan, pNtk1, pNtk2, option, nArgv[2]);
 
     Bmatch_ManStop(pMan);
 
@@ -97,7 +96,7 @@ static int Abc_CommandBmatchGroup(Abc_Frame_t *pAbc, int argc, char *argv[]) {
     nArgv = argv + globalUtilOptind;
 
     // reserve for reading group information
-    if (nArgc != 1) {
+    if (nArgc != 2) {
         Abc_Print(-1, "Invalid command!\n");
         goto usage;
     }
@@ -106,7 +105,7 @@ static int Abc_CommandBmatchGroup(Abc_Frame_t *pAbc, int argc, char *argv[]) {
     Bmatch_ReadNtk(pMan, &pNtk1, &pNtk2);
     Bmatch_Preprocess(pMan, pNtk1, pNtk2, option);
 
-    Bmatch_SolveNP3(pMan, pNtk1, pNtk2, option);
+    Bmatch_SolveNP3(pMan, pNtk1, pNtk2, option, nArgv[1]);
 
     Bmatch_ManStop(pMan);
 
