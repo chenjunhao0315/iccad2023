@@ -155,7 +155,7 @@ endif
 
 $(info $(MSG_PREFIX)Using CFLAGS=$(CFLAGS))
 CXXFLAGS += $(CFLAGS)
-CXXFLAGS += -std=c++14
+CXXFLAGS += -std=c++11
 
 SRC  :=
 GARBAGE := core core.* *.stackdump ./tags $(PROG) arch_flags
