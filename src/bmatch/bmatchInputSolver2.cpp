@@ -1,6 +1,6 @@
 #include "bmatch.hpp"
 #include "bmatchQbf.hpp"
-#include "print.hpp"
+// #include "print.hpp"
 
 #include "base/io/ioAbc.h"
 #include "aig/gia/giaAig.h"
@@ -32,9 +32,167 @@ void Bmatch_ReducePossibleMIbyUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
 Abc_Ntk_t *Bmatch_NtkQbfMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
+InputMapping Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+
 #ifdef __cplusplus
 }
 #endif
+
+// Abc_Obj_t *Bmatch_NtkCreateMultiplexer2(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal) {
+//     int j;
+//     std::vector<Abc_Obj_t *> prevSignal = pSignal;
+//     std::vector<Abc_Obj_t *> currSignal;
+    
+//     for (int i = 0; i < pControl.size(); ++i) {
+//         Abc_Obj_t *pC = pControl[i];
+//         for (j = 0; j < prevSignal.size(); j += 2) {
+//             Abc_Obj_t *p0 = prevSignal[j];
+//             Abc_Obj_t *p1 = ((j + 1) == prevSignal.size()) ? prevSignal[j] : prevSignal[j + 1];
+//             currSignal.push_back(Abc_AigMux(pMan, pC, p1, p0));
+//         }
+//         prevSignal = currSignal;
+//         currSignal.clear();
+//     }
+
+//     return prevSignal[0];
+// }
+
+// void Bmatch_NtkBuildWithCone(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkMiter, std::vector<int> &outs) {
+//     Abc_Obj_t *pObj;
+//     int i;
+
+//     std::set<Abc_Obj_t *> cone;
+//     for (auto &out : outs) {
+//         Vec_Ptr_t * vNodes;
+//         Abc_Obj_t *pOut = Abc_NtkPo(pNtk, out);
+//         vNodes = Abc_NtkDfsNodes( pNtk, &pOut, 1 );
+//         Vec_PtrForEachEntry(Abc_Obj_t *, vNodes, pObj, i) {
+//             cone.insert(pObj);
+//         }
+//     }
+// }
+
+// Abc_Ntk_t *Bmatch_NtkQbfMiterReduced(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, std::vector<int> &forceYi2Xi, vMatch &MO) {
+//     char Buffer[1000];
+//     Abc_Ntk_t * pNtkMiter;
+//     pNtkMiter = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
+//     Abc_Obj_t *pObj, *pObjTemp, *pObjNew;
+//     auto &MapReduceMI = pMan->MapReduceMI;
+//     int nControlPi = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1)))); // normal matrix
+//     int i;
+    
+//     sprintf(Buffer, "%s_%s_miter", pNtk1->pName, pNtk2->pName);
+//     Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
+
+//     Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
+//     Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);
+
+//     // Control PI
+//     std::vector<std::vector<Abc_Obj_t *> > controlPis;
+//     for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+//         std::vector<Abc_Obj_t *> controlPi;
+//         for (int j = 0; j < nControlPi; ++j) {
+//             pObj = Abc_NtkCreatePi(pNtkMiter);
+//             sprintf(Buffer, "controlPi_%d_%d", i, j);
+//             Abc_ObjAssignName(pObj, Buffer, NULL);
+//             controlPi.emplace_back(std::move(pObj));
+//         }
+//         pObj = Abc_NtkCreatePi(pNtkMiter);
+//         sprintf(Buffer, "controlPi_%d_%d_inv", i, Abc_NtkPiNum(pNtk1));
+//         Abc_ObjAssignName(pObj, Buffer, NULL);
+//         controlPi.emplace_back(std::move(pObj));
+
+//         controlPis.emplace_back(std::move(controlPi));
+//     }
+//     assert(controlPis.size() == Abc_NtkPiNum(pNtk2));
+
+//     // Ntk1 PI
+//     std::vector<Abc_Obj_t *> Ntk1_Pis;
+//     Abc_NtkForEachPi(pNtk1, pObj, i) {
+//         pObjNew = Abc_NtkCreatePi(pNtkMiter);
+//         sprintf(Buffer, "_ntk1");
+//         Abc_ObjAssignName(pObjNew, Abc_ObjName(pObj), Buffer);
+//         Ntk1_Pis.emplace_back(pObjNew);
+//         Ntk1_Pis.emplace_back(Abc_ObjNot(pObjNew));
+//         pObj->pCopy = pObjNew;
+//     }
+//     Ntk1_Pis.emplace_back(Abc_AigConst1(pNtkMiter));
+//     Ntk1_Pis.emplace_back(Abc_ObjNot(Abc_AigConst1(pNtkMiter)));
+
+//     // PO
+//     pObjNew = Abc_NtkCreatePo(pNtkMiter);
+//     Abc_ObjAssignName(pObjNew, "miter", NULL);
+
+//     // Create control input of Ntk2
+//     // Init map of reduce MI
+//     MapReduceMI = Mat(Abc_NtkPiNum(pNtk2), std::vector<int>());
+//     Abc_NtkForEachPi(pNtk2, pObj, i) {
+//         std::vector<Abc_Obj_t *> &pControl = controlPis[i];
+
+//         if (forceYi2Xi[i] < 0) { // non forced
+//             std::vector<Abc_Obj_t *> Reduced_Ntk1_Pis;
+//             for (int j = 0; j < 2 * (Abc_NtkPiNum(pNtk1) + 1); ++j) {
+//                 if (Bmatch_LegalMI(pMan, i, j)) {
+//                     MapReduceMI[i].push_back(j);
+//                     Reduced_Ntk1_Pis.push_back(Ntk1_Pis[j]);
+//                 }
+//             }
+//             pObjNew = Bmatch_NtkCreateMultiplexer2((Abc_Aig_t *)pNtkMiter->pManFunc, pControl, Reduced_Ntk1_Pis);
+//         } else { // force connection
+//             pObjNew = Ntk1_Pis[forceYi2Xi[i]];
+//         }
+//         pObj->pCopy = pObjNew;
+//     }
+
+//     // Construct over Ntk1 and Ntk2
+//     Bmatch_NtkMiterAddOne(pNtk1, pNtkMiter);
+//     Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
+
+//     std::vector<Abc_Obj_t *> Xnors;
+//     Abc_NtkForEachCo(pNtk1, pObj, i) {
+//         if (!MO[i].empty()) {
+//             pObjTemp = Abc_ObjChild0Copy(pObj);
+//             for (int j = 0; j < MO[i].size(); ++j) {
+//                 pObj = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, MO[i][j].var()));
+//                 pObj = (MO[i][j].sign()) ? Abc_ObjNot(pObj) : pObj;
+//                 pObjNew = Abc_ObjNot(Abc_AigXor((Abc_Aig_t *)pNtkMiter->pManFunc, pObjTemp, pObj));
+//                 Xnors.push_back(pObjNew);
+//             }
+//         }
+//     }
+//     pObj = Bmatch_NtkCreateAnd((Abc_Aig_t *)pNtkMiter->pManFunc, Xnors);
+//     Abc_ObjAddFanin(Abc_NtkPo(pNtkMiter, 0), pObj);
+
+//     // Cleanup
+//     Abc_AigCleanup((Abc_Aig_t*)pNtkMiter->pManFunc);
+
+//     // DC2
+//     if (Abc_NtkNodeNum(pNtkMiter) > 500) {
+//         Abc_Ntk_t *pNtkTemp;
+//         pNtkMiter = Abc_NtkDC2(pNtkTemp = pNtkMiter, 1, 0, 1, 0, 0);
+//         Abc_NtkDelete(pNtkTemp);
+//     }
+
+//     if (!Abc_NtkCheck(pNtkMiter)) {
+//         Abc_Print(-1, "Bmatch_NtkMiter: The network check has failed.\n");
+//         Abc_NtkDelete(pNtkMiter);
+
+//         return NULL;
+//     }
+
+//     // Io_Write(pNtkMiter, "miter_reduced.v", IO_FILE_VERILOG);
+
+//     return pNtkMiter;
+// }
+
+// // Recursive solving
+// InputMapping Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+//     for (int fi = 0; fi < MO.size(); ++fi) {
+//         for (auto &gi : MO[fi]) {
+
+//         }
+//     }
+// }
 
 inline int Bmatch_LegalMI(Bmatch_Man_t *pMan, int n, int m) {
     return pMan->possibleMI[n * pMan->mi + m];

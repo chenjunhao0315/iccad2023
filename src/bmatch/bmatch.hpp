@@ -1,6 +1,7 @@
 #ifndef __BMATCH_H__
 #define __BMATCH_H__
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include <set>
