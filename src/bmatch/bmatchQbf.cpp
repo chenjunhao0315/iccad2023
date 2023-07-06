@@ -118,6 +118,8 @@ int Bmatch_Gia_QbfSolveValueInt(Bmatch_Qbf_Man_t *p, Gia_Man_t *pGia, Vec_Int_t 
     abctime clk;
     if ( fVerbose )
         printf( "Solving QBF for \"%s\" with %d parameters, %d variables and %d AIG nodes.\n", Gia_ManName(pGia), p->nPars, p->nVars, Gia_ManAndNum(pGia) );
+    if ( p->pSatVer == 0x0 )
+        return 1;
 
     assert( Gia_ManRegNum(pGia) == 0 );
     Vec_IntFill( p->vValues, nPars, 0 );

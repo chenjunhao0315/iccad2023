@@ -9,6 +9,8 @@ extern "C" {
 void Bmatch_NtkSetup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 Abc_Ntk_t* Bmatch_NtkResynth(Abc_Ntk_t *pNtk);
 
+extern Abc_Ntk_t * Abc_NtkDC2( Abc_Ntk_t * pNtk, int fBalance, int fUpdateLevel, int fFanout, int fPower, int fVerbose );
+
 #ifdef __cplusplus
 }
 #endif
@@ -36,14 +38,18 @@ Abc_Ntk_t* Bmatch_NtkResynth(Abc_Ntk_t *pNtk) {
 
     // pNtk = Abc_NtkBalance(pNtkTemp = pNtk, 0, 0, 1);  Abc_NtkDelete(pNtkTemp);
 
-    Abc_NtkRewrite(pNtk, 1, 0, 0, 0, 0);
-    Abc_NtkRewrite(pNtk, 1, 1, 0, 0, 0);
+    // Abc_NtkRewrite(pNtk, 1, 0, 0, 0, 0);
+    // Abc_NtkRewrite(pNtk, 1, 1, 0, 0, 0);
 
     // pNtk = Abc_NtkBalance(pNtkTemp = pNtk, 0, 0, 1);  Abc_NtkDelete(pNtkTemp);
 
-    Abc_NtkRewrite(pNtk, 1, 1, 0, 0, 0);
+    // Abc_NtkRewrite(pNtk, 1, 1, 0, 0, 0);
 
     // pNtk = Abc_NtkBalance(pNtkTemp = pNtk, 0, 0, 1);  Abc_NtkDelete(pNtkTemp);
+
+    pNtk = Abc_NtkStrash( pNtk, 0, 1, 0 );
+
+    pNtk = Abc_NtkDC2( pNtk, 0, 0, 1, 0, 0 );
 
     return pNtk;
 }

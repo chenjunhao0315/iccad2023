@@ -35,6 +35,9 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 // case 0
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
 
+// case 1
+// #define OUTPUT_MAPPING vMatch MO = {{Literal()}};
+
 // case 10
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
 
@@ -49,7 +52,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
-#define OUTPUT_MAPPING vMatch MO = {{}, {}, {Literal(1)}, {Literal(3)}};
+#define OUTPUT_MAPPING vMatch MO = {{Literal(0)}, {Literal(1)}, {Literal(2)}, {Literal(3)}};
 
 OUTPUT_MAPPING
 
@@ -72,7 +75,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
     }
-    inputSolverMode = 3;
+    inputSolverMode = 4;
 
     //preprocess
     if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
@@ -82,12 +85,13 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
 
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
+    printf("Optimal: %d\n", 2*Abc_NtkPoNum(pNtk2));
 
     abctime clkTotal = Abc_Clock();
 
     vMatch MI, MO_new;
-    // MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
-    // Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+    MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+    Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
     // vMatch_Group MO;
     bool optimal = false;
     while (!optimal && ret) {
@@ -101,7 +105,11 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         if (MO_new.size() == 0) { break;}
         
         //input solve
-        if (inputSolverMode == 4) {
+        if (inputSolverMode == 5) {
+            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO_new);
+            result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
+            MI = Mapping.MI;
+        } else if (inputSolverMode == 4) {
             Bmatch_InitQbfInputSolver(pMan, pNtk1, pNtk2);
             Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO_new);
             Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO_new);
@@ -556,6 +564,7 @@ void Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
         if (i >= 0) group.first.emplace_back(std::get<PO>(supp1[i]));
         if (j >= 0) group.second.emplace_back(std::get<PO>(supp2[j]));
 
+        // suppFunc1 = std::get<SUPPFUNC>(supp1[i]);
         suppFunc1 = std::max(suppFunc1, std::get<SUPPFUNC>(supp1[i]));
         suppFunc2 = (j - 1 >= 0) ? std::get<SUPPFUNC>(supp2[j - 1]) : std::get<SUPPFUNC>(supp2[0]);
 
