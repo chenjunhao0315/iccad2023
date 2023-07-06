@@ -34,6 +34,7 @@ void Bmatch_InitQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 void Bmatch_FillPossibleMIbyStrSupp(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_ReducePossibleMIbyUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+void Bmatch_ReducePossibleMIbyBussssss(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 Abc_Ntk_t *Bmatch_NtkQbfMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
@@ -196,6 +197,7 @@ int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
     Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO);
     Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO);
     Bmatch_ReducePossibleMIbySymmetry(pMan, pNtk1, pNtk2, MO);
+    Bmatch_ReducePossibleMIbyBussssss(pMan, pNtk1, pNtk2, MO);
     Abc_Ntk_t *pNtkMiter = Bmatch_NtkQbfMiterReduced(pMan, pNtk1, pNtk2, forceYi2Xi, MO);
     Aig_Man_t *pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
     Gia_Man_t *pGia = Gia_ManFromAig(pAig);
@@ -566,6 +568,33 @@ InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Ab
     Vec_IntFree(vControl);
 
     return {RetValue, MI};
+}
+
+void Bmatch_ReducePossibleMIbyBussssss(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+    if (pMan->BI1.empty() || pMan->BI2.empty()) return;
+
+    int ni = pMan->ni;
+    int mi = pMan->mi;
+
+    auto &BI1 = pMan->BI1;
+    auto &BI2 = pMan->BI2;
+    auto &possibleMI = pMan->possibleMI;
+
+    std::set<int> InputInBus1;
+    for (auto &b : BI1)
+        InputInBus1.insert(b.begin(), b.end());
+    std::set<int> InputInBus2;
+    for (auto &b : BI2)
+        InputInBus2.insert(b.begin(), b.end());
+
+    for (int i = 0; i < Abc_NtkPiNum(pNtk1); ++i) {
+        for (int j = 0; j < Abc_NtkPiNum(pNtk2); ++j) {
+            if (InputInBus1.count(i) != InputInBus2.count(j)) {
+                possibleMI[j * mi + i * 2 + 0] = 0;
+                possibleMI[j * mi + i * 2 + 1] = 0;
+            }
+        }
+    }
 }
 
 void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
