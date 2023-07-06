@@ -226,7 +226,7 @@ int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
         }
     }
 
-    int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vControl, nPars, 1024, 0, 100, 0, 1);
+    int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vControl, nPars, 1024, 0, 100, 0, 0);
     // int result = Gia_QbfSolveValue(pGia, vControl, nPars, 1024, 0, 100, 0, 1);
     Bmatch_Gia_QbfFree(pQbfMan);
 
