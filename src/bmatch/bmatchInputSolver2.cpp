@@ -195,7 +195,7 @@ int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
     pMan->possibleMI.fill(0);
     Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO);
     Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO);
-    Bmatch_ReducePossibleMIbySymmetry(pMan, pNtk1, pNtk2);
+    Bmatch_ReducePossibleMIbySymmetry(pMan, pNtk1, pNtk2, MO);
     Abc_Ntk_t *pNtkMiter = Bmatch_NtkQbfMiterReduced(pMan, pNtk1, pNtk2, forceYi2Xi, MO);
     Aig_Man_t *pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
     Gia_Man_t *pGia = Gia_ManFromAig(pAig);
@@ -571,8 +571,12 @@ InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Ab
 void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     if (pMan->vSymm1.empty() || pMan->vSymm2.empty()) return;
 
+    int ni = pMan->ni;
+    int mi = pMan->mi;
+
     auto &vSymm1 = pMan->vSymm1;
     auto &vSymm2 = pMan->vSymm2;
+    auto &possibleMI = pMan->possibleMI;
 
     for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); ++fi) {
         for (auto &g : MO[fi]) {
@@ -583,7 +587,8 @@ void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc
                     if (symm1.size() > symm2.size()) {
                         for (auto &xi : symm1) {
                             for (auto &yi : symm2) {
-                                
+                                possibleMI[yi * mi + 2 * xi + 0] = 0;
+                                possibleMI[yi * mi + 2 * xi + 1] = 0;
                             }
                         }
                     }
