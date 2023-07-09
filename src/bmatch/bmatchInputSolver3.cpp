@@ -63,7 +63,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     int index = Abc_NtkPoNum(pNtk1) - target, result = -1;
 
-    // while (index < Abc_NtkPoNum(pNtk1)) {
+    while (index < Abc_NtkPoNum(pNtk1)) {
         Abc_Obj_t *pOut = Abc_NtkPo(pNtkMiter, index);
         Abc_Ntk_t *pNtkCone = Abc_NtkCreateCone(pNtkMiter, Abc_ObjFanin0(pOut), Abc_ObjName(pOut), 1);
         if (Abc_ObjFaninC0(pOut))
@@ -85,13 +85,13 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Gia_ManStop( pGia );
         Aig_ManStop( pAig );
         Abc_NtkDelete(pNtkCone);
-    //     if (result == 1) {
-    //         index++;
-    //         continue;
-    //     } else {
-    //         break;
-    //     }
-    // }
+        if (result == 1) {
+            index++;
+            continue;
+        } else {
+            break;
+        }
+    }
 
     if (Abc_NtkPoNum(pNtk1) - index != target) {
         printf("Target: %d MaxScore: %d\n", target,Abc_NtkPoNum(pNtk1) - index);
