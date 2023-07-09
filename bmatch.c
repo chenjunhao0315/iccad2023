@@ -11,20 +11,17 @@ int Cmd_CommandExecute(Abc_Frame_t *pAbc, const char *sCommand);
 
 int main(int argc, char *argv[]) {
     Abc_Frame_t *pAbc;
-    char *pFileName;
     char Command[1000];
 
-    if (argc != 2) {
-        printf("Wrong number of command-line arguments.");
+    if (argc != 3) {
+        printf("Usage: %s <input> <match>\n", argv[0]);
         return -1;
     }
-
-    pFileName = argv[1];
 
     Abc_Start();
     pAbc = Abc_FrameGetGlobalFrame();
 
-    sprintf(Command, "bmatch -v -r benchmark/case%d/cir1.v benchmark/case%d/cir2.v", atoi(pFileName), atoi(pFileName));
+    sprintf(Command, "bmatchgroup -v -r %s %s", argv[1], argv[2]);
     if (Cmd_CommandExecute(pAbc, Command)) {
         printf("Cannot execute command \"%s\".\n", Command);
         return 1;
