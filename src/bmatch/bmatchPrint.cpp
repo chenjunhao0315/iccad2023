@@ -19,6 +19,7 @@ void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+void Bmatch_PrintPartition(Bmatch_Man_t *pMan);
 
 #ifdef __cplusplus
 }
@@ -242,6 +243,28 @@ void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2){
     PRINT_EQUAL(pMan->oEqual1, pNtk1);
     Abc_Print(1, "  Cir2:\n");
     PRINT_EQUAL(pMan->oEqual2, pNtk2);
+}
+void Bmatch_PrintPartition(Bmatch_Man_t *pMan){
+    #define PRUNE_PRINT(name, Partition)   \
+        do                                 \
+        {                                  \
+            Abc_Print(1, "%s: ", name);    \
+            for (auto &i : Partition)      \
+            {                              \
+                Abc_Print(1, "{");         \
+                for (auto &j : i)          \
+                {                          \
+                    Abc_Print(1, "%i ", j); \
+                }                          \
+                Abc_Print(1, "}");         \
+            }                              \
+            printf("\n");                  \
+        } while (0);
+
+    PRUNE_PRINT("ipartition1", pMan->iPartition1);
+    PRUNE_PRINT("ipartition2", pMan->iPartition2);
+    PRUNE_PRINT("opartition1", pMan->oPartition1);
+    PRUNE_PRINT("opartition2", pMan->oPartition2);
 }
 
 ABC_NAMESPACE_IMPL_END

@@ -11,6 +11,7 @@
 #include "base/abc/abc.h"
 #include "AutoBuffer.hpp"
 #include "bmatchCadicalSat.hpp"
+#include "bdd/cudd/cuddInt.h"
 
 #define VERBOSE_MASK        (1 << 0)
 #define VERBOSE_DETAIL_MASK (1 << 1)
@@ -30,7 +31,9 @@ typedef std::vector<std::vector<std::set<int> > > vSymm;
 typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
 typedef std::vector<std::vector<int> > Mat;
-typedef std::vector<std::vector<int>> vEqual;
+typedef std::vector<std::vector<int> > vEqual;
+typedef std::vector<std::vector<int> > vPartition;
+
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
 typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
@@ -120,6 +123,15 @@ public:
     bool AllowProjection;
     std::vector<int> ClauseControl;
     vMatch_Group MO;
+
+    //bdd
+    DdManager *bdd1;
+    DdManager *bdd2;
+    
+    //pp equi
+    vPartition iPartition1, oPartition1;
+    vPartition iPartition2, oPartition2;
+
 };
 
 enum {
@@ -215,6 +227,10 @@ extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintPartition(Bmatch_Man_t *pMan);
+
+//bmatchBdd.cpp
+// extern void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose);
 
 #ifdef __cplusplus
 }

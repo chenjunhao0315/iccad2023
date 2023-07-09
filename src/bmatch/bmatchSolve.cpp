@@ -46,8 +46,9 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
 // case 16
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
 
-#define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
-//#define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
+// #define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
+#define OUTPUT_MAPPING vMatch MO = {{}, {}, {Literal(1)}, {Literal(3)}};
 
 OUTPUT_MAPPING
 
@@ -73,6 +74,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
     }
+    inputSolverMode = 3;
     inputSolverMode = 3;
 
     //preprocess
@@ -273,7 +275,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose){
     int cont = 0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<m; j++){
-            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLit(i*m+j)) == LearnedAssumption.end() & \
+            if(std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLit(i*m+j)) == LearnedAssumption.end() && \
                 std::find(LearnedAssumption.begin(), LearnedAssumption.end(), Bmatch_toLitCond(i*m+j, 1)) == LearnedAssumption.end()){
                 pLits[cont] = Bmatch_toLit(i*m+j);
                 cont++;
@@ -439,10 +441,10 @@ int Bmatch_PruneOutputSolverByUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
             int nEquivUnate2 = nSupp2 + binate2[j];
             if (nSupp2 < nSupp1 || nEquivUnate2 < nEquivUnate1) {
                 int Lit = Bmatch_toLitCond(j * (2 * Abc_NtkPoNum(pNtk2)) + i * 2, 1);
-                // printf("(%d, %d) ", i, j * 2);
+                // printf("(%d, %d) ", j, i * 2);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
                 Lit = Bmatch_toLitCond(j * (2 * Abc_NtkPoNum(pNtk2)) + i * 2 + 1, 1);
-                // printf("(%d, %d) ", i, j * 2 + 1);
+                // printf("(%d, %d) ", j, i * 2 + 1);
                 Bmatch_sat_solver_addclause(pSolver, &Lit, &Lit + 1);
             }
         }
@@ -495,7 +497,7 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     for(int l = 0; l< vGroup.size(); l++){
         auto Group_ntk1 = vGroup[l].first;
         for(int k = 0; k<vGroup.size(); k++){
-            if(k == l) continue;
+            if (k == l) continue;
             auto Group_ntk2 = vGroup[k].second;
             for(int i = 0;i<Group_ntk1.size(); i++){
                 for(int j = 0;j<Group_ntk2.size(); j++){
