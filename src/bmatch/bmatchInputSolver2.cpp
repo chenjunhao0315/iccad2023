@@ -41,6 +41,8 @@ InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Ab
 InputMapping Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_CnfReduce(std::vector<AutoBuffer<int> > &cnf);
 
+vMatch Bmatch_OutputGuess(Bmatch_Man_t *pMan);
+
 #ifdef __cplusplus
 }
 #endif

@@ -8,6 +8,7 @@
 #include <tuple>
 #include <array>
 #include <cmath>
+#include <algorithm>
 
 #include "base/abc/abc.h"
 #include "AutoBuffer.hpp"
@@ -50,6 +51,11 @@ struct Literal {
 
 typedef std::vector<std::vector<Literal> > vMatch;
 typedef std::vector<std::vector<int>>  vMatch_Group;
+
+struct Prob {
+    float data;
+    int id;
+};
 
 class Bmatch_Man_t {
 public:
@@ -126,6 +132,9 @@ public:
     bool AllowProjection;
     std::vector<int> ClauseControl;
     vMatch_Group MO;
+
+    AutoBuffer<Prob> prob1;
+    AutoBuffer<Prob> prob2;
 };
 
 enum {
@@ -199,6 +208,7 @@ extern Abc_Ntk_t *Bmatch_NtkQbfMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_N
 extern InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 extern InputMapping Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 extern InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+extern InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 // bmatchEc.cpp
 extern EcResult Bmatch_NtkEcFraig(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO, int cadicalSat, int fVerbose);

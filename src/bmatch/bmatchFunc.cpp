@@ -2,6 +2,7 @@
 
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
+#include "base/io/ioAbc.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -25,6 +26,7 @@ void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, AutoBuffer<int> &sRed
 void Bmatch_CalCir2RedundWithGivenMapping(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, std::set<int> &sRedund);
 void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat);
 void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
+void Bmatch_CalProb(AutoBuffer<Prob> &pValues, Abc_Ntk_t *pNtk);
 void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 #ifdef __cplusplus
@@ -76,7 +78,44 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_CalEqual(pMan->oEqual2, pNtk2);
     printf("Done!\n");
 
+    // prob
+    printf("Cir1\n");
+    Bmatch_CalProb(pMan->prob1, pNtk1);
+    printf("Cir2\n");
+    Bmatch_CalProb(pMan->prob2, pNtk2);
+
+    // exit(-1);
+
     // Sensitivity or others
+}
+
+void Bmatch_CalProb(AutoBuffer<Prob> &pValues, Abc_Ntk_t *pNtk) {
+    Abc_Obj_t * pNode;
+    int i;
+    float Value0, Value1;
+    // set the CI values
+    Abc_AigConst1(pNtk)->dTemp = (float)1;
+    Abc_NtkForEachCi( pNtk, pNode, i )
+        pNode->dTemp = (float)0.5;
+    // simulate in the topological order
+    Abc_NtkForEachNode( pNtk, pNode, i ) {
+        Value0 = Abc_ObjFanin0(pNode)->dTemp;
+        Value1 = Abc_ObjFanin1(pNode)->dTemp;
+        Value0 = Abc_ObjFaninC0(pNode) ? 1 - Value0 : Value0;
+        Value1 = Abc_ObjFaninC1(pNode) ? 1 - Value1 : Value1;
+        pNode->dTemp = Value0 * Value1;
+    }
+    // fill the output values
+    pValues.resize(Abc_NtkCoNum(pNtk));
+    Abc_NtkForEachCo( pNtk, pNode, i ) {
+        pValues[i].data = Abc_ObjFaninC0(pNode) ? 1 - Abc_ObjFanin0(pNode)->dTemp : Abc_ObjFanin0(pNode)->dTemp;
+        pValues[i].id = i;
+    }
+    std::sort(pValues.data(), pValues.data() + pValues.size(), [](Prob &a, Prob &b) { return a.data > b.data; });
+
+    for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
+        printf("%s: %f\n", Abc_ObjName(Abc_NtkPo(pNtk, pValues[i].id)), std::abs(pValues[i].data));
+    }
 }
 
 void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat) {
