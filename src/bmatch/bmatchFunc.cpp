@@ -85,7 +85,7 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     printf("Done!\n");
 
     // prob
-    printf("Calculate Probability Information...\n");
+    printf("Calculate Probability Information...");
     Bmatch_CalProb(pMan->prob1, pNtk1);
     Bmatch_CalProb(pMan->prob2, pNtk2);
     printf("Done!\n");
