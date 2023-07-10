@@ -11,6 +11,8 @@
 #include <algorithm>
 
 #include "base/abc/abc.h"
+#include "aig/aig/aig.h"
+#include "bdd/cudd/cudd.h"
 #include "AutoBuffer.hpp"
 #include "bmatchCadicalSat.hpp"
 
@@ -33,6 +35,7 @@ typedef std::vector<std::pair<int, int> > vSymmPair;
 typedef std::vector<std::set<int> > vSupp;
 typedef std::vector<std::vector<int> > Mat;
 typedef std::vector<std::vector<int>> vEqual;
+typedef std::vector<std::vector<int> > vPartition;
 
 enum { PO = 0, SUPPFUNC = 1, STRFUNC = 2};
 typedef std::vector<std::tuple<int, int, int> > vSuppInfo;
@@ -135,6 +138,14 @@ public:
 
     AutoBuffer<Prob> prob1;
     AutoBuffer<Prob> prob2;
+
+    //bdd
+    DdManager *bdd1;
+    DdManager *bdd2;
+    
+    //pp equi
+    vPartition iPartition1, oPartition1;
+    vPartition iPartition2, oPartition2;
 };
 
 enum {
@@ -206,7 +217,10 @@ extern void Bmatch_FillPossibleMIbyStrSupp(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1,
 extern void Bmatch_ReducePossibleMIbyUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 extern Abc_Ntk_t *Bmatch_NtkQbfMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 extern InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
-extern InputMapping Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+extern int Bmatch_GeneralCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+extern void Bmatch_CalculatePossibleMIMOStrict(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
+extern void Bmatch_CalculatePossibleMIMOLoose(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
+extern int Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO, vMatch &MI, vMatch &MO, int allowMultipleMapping);
 extern InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 extern InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
@@ -246,6 +260,10 @@ extern void Bmatch_PrintOutputSupport(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_
 extern void Bmatch_PrintSymm(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PrintPartition(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+
+//bmatchPPEquivelence.cpp
+extern vMatch Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }

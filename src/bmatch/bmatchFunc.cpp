@@ -3,6 +3,8 @@
 #include "bmatch.hpp"
 #include "opt/sim/sim.h"
 #include "base/io/ioAbc.h"
+#include "aig/aig/aig.h"
+#include "bdd/cudd/cudd.h"
 
 ABC_NAMESPACE_IMPL_START
 
@@ -17,9 +19,13 @@ LINEAR_SEARCH_FUNC(Pi)
 LINEAR_SEARCH_FUNC(Po)
 #undef LINEAR_SEARCH_FUNC
 
+extern ABC_DLL void *Abc_NtkBuildGlobalBdds(Abc_Ntk_t *pNtk, int fBddSizeMax, int fDropInternal, int fReorder, int fReverse, int fVerbose);
+extern ABC_DLL int Abc_NtkSizeOfGlobalBdds(Abc_Ntk_t *pNtk);
+extern DdApaNumber Cudd_ApaCountMinterm(DdManager *manager, DdNode *node, int nvars, int *digits);
+
 void Bmatch_BusNameMaping(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 void Bmatch_CalSuppAndSymm(Abc_Ntk_t *pNtk, vSupp &iFuncSupp, vSupp &oFuncSupp, vSymm &vSymm, vSymmPair &vSymmPair, int calSymm);
-void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk);
+void Bmatch_CalStructSupp(vSupp &oStrSupp, Mat &unateMat);
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp);
 void Bmatch_CalSuppInfo(vSuppInfo& vSuppInfo, vSupp &oFuncSupp, vSupp &oStrSupp);
 void Bmatch_CalCirRedund(Abc_Ntk_t *pNtk, vSupp &oStrSupp, AutoBuffer<int> &sRedund);
@@ -49,10 +55,16 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_CalSuppAndSymm(pNtk2, pMan->iFuncSupp2, pMan->oFuncSupp2, pMan->vSymm2, pMan->vSymmPair2, calSymm);
     printf("Done!\n");
 
+    // calculate unateness
+    printf("Calculate Unateness Informatin...");
+    Bmatch_CalUnate(pNtk1, pMan->unateMat1);
+    Bmatch_CalUnate(pNtk2, pMan->unateMat2);
+    printf("Done!\n");
+
     // Structural support information
     printf("Calculate Structural support information...");
-    Bmatch_CalStructSupp(pMan->oStrSupp1, pNtk1);
-    Bmatch_CalStructSupp(pMan->oStrSupp2, pNtk2);
+    Bmatch_CalStructSupp(pMan->oStrSupp1, pMan->unateMat1);
+    Bmatch_CalStructSupp(pMan->oStrSupp2, pMan->unateMat2);
     printf("Done!\n");
 
     // Redundant support information
@@ -64,12 +76,6 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
 
     Bmatch_CalSuppInfo(pMan->vSuppInfo1, pMan->oFuncSupp1, pMan->oStrSupp1);
     Bmatch_CalSuppInfo(pMan->vSuppInfo2, pMan->oFuncSupp2, pMan->oStrSupp2);
-    printf("Done!\n");
-
-    // calculate unateness
-    printf("Calculate Unateness Informatin...");
-    Bmatch_CalUnate(pNtk1, pMan->unateMat1);
-    Bmatch_CalUnate(pNtk2, pMan->unateMat2);
     printf("Done!\n");
 
     //equality
@@ -87,6 +93,30 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     // exit(-1);
 
     // Sensitivity or others
+}
+
+void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose)
+{
+    // Aig_Man_t* pAig1 = Abc_NtkToDar( pNtk1, 0, 0 );
+    // Aig_Man_t* pAig2 = Abc_NtkToDar( pNtk2, 0, 0 );
+
+    // FILE* test;
+
+    // DdManager* pBdd1 = Aig_ManComputeGlobalBdds(pAig1, 80000000, 1, 0 ,fVerbose);
+    auto pBdd1 = Abc_NtkBuildGlobalBdds(pNtk1, 80000000, 1, 1, 1, fVerbose);
+    pMan->bdd1 = (DdManager *)pBdd1;
+    // if(fVerbose) std::cout<<"bdd1 size:"<<Aig_ManSizeOfGlobalBdds(pAig1)<<std::endl;
+    if (fVerbose)
+        std::cout << "bdd1 size:" << Abc_NtkSizeOfGlobalBdds(pNtk1) << std::endl;
+    // Cudd_PrintInfo(pBdd1, test);
+    // DdManager* pBdd2 = Aig_ManComputeGlobalBdds(pAig2, 80000000, 1, 0 ,fVerbose);
+    auto pBdd2 = Abc_NtkBuildGlobalBdds(pNtk2, 80000000, 1, 1, 0, fVerbose);
+    pMan->bdd2 = (DdManager *)pBdd2;
+    // if(fVerbose) std::cout<<"bdd2 size:"<<Aig_ManSizeOfGlobalBdds(pAig2)<<std::endl;
+    if (fVerbose)
+        std::cout << "bdd2 size:" << Abc_NtkSizeOfGlobalBdds(pNtk2) << std::endl;
+
+    return;
 }
 
 void Bmatch_CalProb(AutoBuffer<Prob> &pValues, Abc_Ntk_t *pNtk) {
@@ -113,9 +143,9 @@ void Bmatch_CalProb(AutoBuffer<Prob> &pValues, Abc_Ntk_t *pNtk) {
     }
     std::sort(pValues.data(), pValues.data() + pValues.size(), [](Prob &a, Prob &b) { return a.data > b.data; });
 
-    for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
-        printf("%s: %f\n", Abc_ObjName(Abc_NtkPo(pNtk, pValues[i].id)), std::abs(pValues[i].data));
-    }
+    // for (int i = 0; i < Abc_NtkPoNum(pNtk); ++i) {
+    //     printf("%s: %f\n", Abc_ObjName(Abc_NtkPo(pNtk, pValues[i].id)), std::abs(pValues[i].data));
+    // }
 }
 
 void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat) {
@@ -327,25 +357,20 @@ void Bmatch_CalEqual(vEqual &oEqual, Abc_Ntk_t *pNtk){
     }
 }
 
-void Bmatch_CalStructSupp(vSupp &oStrSupp, Abc_Ntk_t *pNtk) {
+void Bmatch_CalStructSupp(vSupp &oStrSupp, Mat &unateMat) {
     Vec_Ptr_t *vSupp, *vNodes;
     Abc_Obj_t *pObj, *pObjTemp;
     int i, j, index;
 
-    oStrSupp.resize(Abc_NtkPoNum(pNtk));
-    Abc_NtkForEachPo(pNtk, pObj, i) {
-        vSupp = Abc_NtkNodeSupport(pNtk, &pObj, 1);
-        // vNodes = Abc_NtkDfsNodes(pNtk, &pObj, 1);
-        Vec_PtrForEachEntry(Abc_Obj_t *, vSupp, pObjTemp, j) {
-            if (Abc_ObjIsPi(pObjTemp)) {
-                index = Bmatch_LinearSearchPiName2Index(pNtk, pObjTemp);
-                if (index != -1) oStrSupp[i].insert(index);
-            }
+    oStrSupp.clear();;
+    for (int i = 0; i < unateMat.size(); ++i) {
+        std::set<int> supp;
+        for (int j = 0; j < unateMat[i].size(); ++j) {
+            if (unateMat[i][j] > 0)
+                supp.insert(j);
         }
-        Vec_PtrFree(vSupp);
-        // Vec_PtrFree(vNodes);
+        oStrSupp.emplace_back(supp);
     }
-    Abc_NtkCleanMarkA(pNtk);
 }
 
 void Bmatch_CalRedundSupp(vSupp &rSupp, vSupp &oStrSupp, vSupp &oFuncSupp) {
