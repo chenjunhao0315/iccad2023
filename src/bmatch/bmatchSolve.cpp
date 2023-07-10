@@ -64,7 +64,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     int ret = 1;
     int OutputSolveMode = 1;
     // int InputSolverMode = 5;
-    int mode = 3;
+    int mode = 0;
     EcResult result;
 
     // Abc_NtkPrintIo(stdout, pNtk1, 0);
@@ -164,7 +164,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
 
         // MO_new = MO;
-        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+        //Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
         // if (MO_new.size() == 0) { break;} //all path traced
 
@@ -633,28 +633,28 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
     // std::cout<<std::endl;
 
     //test case6
-    int c1, c2 = 0;
-    std::cout<<c1<<" "<<c2<<std::endl;
-    while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
-        if(pMan->oPartition1[c1].size() == 0 ){
-            c1++;
-        }
+    //int c1, c2 = 0;
+    //std::cout<<c1<<" "<<c2<<std::endl;
+    //while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
+    //    if(pMan->oPartition1[c1].size() == 0 ){
+    //        c1++;
+    //    }
 
-        if(pMan->oPartition2[c2].size() == 0 ){
-            c2++;
-        }
-        
-        if((pMan->oPartition1[c1].size() != 0) && (pMan->oPartition2[c2].size() != 0)){
-            std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
-            pLits[0] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m);
-            pLits[1] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m+1);
-            Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
-            c1++;
-            c2++;
-                        
-        }
-        // if(c1 != c2) break; 
-    }
+    //    if(pMan->oPartition2[c2].size() == 0 ){
+    //        c2++;
+    //    }
+    //    
+    //    if((pMan->oPartition1[c1].size() != 0) && (pMan->oPartition2[c2].size() != 0)){
+    //        std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
+    //        pLits[0] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m);
+    //        pLits[1] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m+1);
+    //        Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
+    //        c1++;
+    //        c2++;
+    //                    
+    //    }
+    //    // if(c1 != c2) break; 
+    //}
     
 
     
