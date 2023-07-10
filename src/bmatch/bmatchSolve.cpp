@@ -25,41 +25,12 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m);
 }
 #endif
 
-// x1
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}};
-
-// x2
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {Literal(1, false)}, {}, {}};
-//#define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {}, {}};
-// #define OUTPUT_MAPPING vMatch MO_test = {{}, {Literal(1, false)}, {}, {}};
-// case 0
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
-
-// case 1
-// #define OUTPUT_MAPPING vMatch MO = {{Literal()}};
-
-// case 10
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
-
-// case 14
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(5)}, {Literal(3)}, {Literal(6)}, {Literal(0)}, {Literal(2)}, {Literal(1)}, {Literal(4)}};
-
-// case 15
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(8)}, {Literal(0)}, {Literal(2)}, {Literal(4)}, {Literal(5)}, {Literal(3)}, {Literal(1)}, {Literal(9)}, {Literal(6)}, {Literal(7)}};
-
-// case 16
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(4, true)}, {Literal(6, true)}, {Literal(7, true)}, {Literal(1)}, {Literal(2)}, {Literal(5)}, {Literal(0)}, {Literal(3)}};
-
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
-// #define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
-#define OUTPUT_MAPPING vMatch MO = {{Literal(0)}, {Literal(1)}, {Literal(2)}, {Literal(3)}};
-
-OUTPUT_MAPPING
-
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option, char *output) {
     int maxIter = 100000, iter = 0, tried = 0, best = 0;
     int ret = 1;
     EcResult result;
+    vMatch MI, MO;
+    bool optimal = false;
 
     Abc_NtkPrintIo(stdout, pNtk1, 0);
     Abc_NtkPrintIo(stdout, pNtk2, 0);
@@ -68,31 +39,30 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     // if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
 
-    int inputSolverMode = 0;
-    if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
-        if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
-            inputSolverMode = 1;
-    }
-    inputSolverMode = 8;
-
-    //preprocess
-    if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
-    Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
-    Bmatch_SolveOutputGroup(pMan);
-    Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
-    ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
-
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
     printf("Optimal: %d\n", Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2));
-
+    int inputSolverMode = 7;
     abctime clkTotal = Abc_Clock();
 
-    if (inputSolverMode == 6) {
+    if (Bmatch_GeneralCheck(pMan, pNtk1, pNtk2, MI, MO)) {
+        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
+        result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO, 1, 0);
+        printf("ECFraig: %s\n", result.status == 3 ? "EQ" : "NEQ");
+        int score = 0;
+        for (int i = 0; i < MO.size(); ++i) {
+            score += (int)!MO[i].empty() + MO[i].size();
+        }
+        best = score;
+        optimal = score == Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2);
+        Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO);
+    }
+
+    if (!optimal && inputSolverMode == 6) {
         Bmatch_SolveQbfInputSolver4(pMan, pNtk1, pNtk2, MO);
         return;
-    } else if (inputSolverMode == 7) {
+    } else if (!optimal && inputSolverMode == 7) {
         vGroup group;
 
         auto &partition1 = pMan->oPartition1;
@@ -196,93 +166,82 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         printf("EcFraig: %s\n", result.status == 3 ? "Equivalence" : "Non-Equivalence");
 
         return;
-    } else if (inputSolverMode == 8) {
-        vMatch MI_try, MO_try;
-
-        if (Bmatch_GeneralCheck(pMan, pNtk1, pNtk2, MI_try, MO_try)) {
-            Bmatch_PrintMatching(pNtk1, pNtk2, MI_try, MO_try);
-            result = Bmatch_NtkEcFraig(pNtk1, pNtk2, MI_try, MO_try, 1, 0);
-            printf("ECFraig: %s\n", result.status == 3 ? "EQ" : "NEQ");
-        }
-        return;
     }
 
-    vMatch MI, MO_new;
-    MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
-    Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
-    // vMatch_Group MO;
-    bool optimal = false;
-    while (!optimal && ret) {
-        //find new pair of output matching
-        EcResult result;
-        MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+    //preprocess
+    if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
+    Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
+    Bmatch_SolveOutputGroup(pMan);
+    Bmatch_InitOutputSolver(pMan, pNtk1, pNtk2);
+    ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
 
-        // MO_new = MO;
-        // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
-        // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
-        if (MO_new.size() == 0) { break;}
+    Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+    Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+    while (!optimal && ret) {
+        // find new pair of output matching
+        MO = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+
+        if (MO.size() == 0) { break; }
         
         //input solve
         if (inputSolverMode == 5) {
-            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO_new);
+            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO);
             result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             MI = Mapping.MI;
         } else if (inputSolverMode == 4) {
             Bmatch_InitQbfInputSolver(pMan, pNtk1, pNtk2);
-            Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO_new);
-            Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO_new);
-            auto Mapping = Bmatch_SolveQbfInputSolver(pMan, pNtk1, pNtk2, MO_new);
+            Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO);
+            Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO);
+            auto Mapping = Bmatch_SolveQbfInputSolver(pMan, pNtk1, pNtk2, MO);
             result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             MI = Mapping.MI;
         } else {
             Bmatch_InitInputSolver(pMan, pNtk1, pNtk2);
-            ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO_new);
-            ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO_new);
-            ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO_new);
-            ret &= Bmatch_PruneInputSolverByUnate(pMan, MO_new);
+            ret &= Bmatch_PruneInputSolverByStrSupport(pMan, MO);
+            ret &= Bmatch_PruneInputSolverByFuncSupport(pMan, MO);
+            ret &= Bmatch_PruneInputSolverBySymmetryProperty(pMan, MO);
+            ret &= Bmatch_PruneInputSolverByUnate(pMan, MO);
             // ret &= Bmatch_PruneInputSolverByBusOrdered(pMan, pNtk1, pNtk2);
             // ret &= Bmatch_PruneInputSolverByBusExactMap(pMan, pNtk1, pNtk2);
             ret &= Bmatch_ApplyInputSolverRowConstraint(pMan, pNtk1, pNtk2);
 
-            if (inputSolverMode == 2) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO_new);
+            if (inputSolverMode == 2) Bmatch_InitControllableInputMiter(pMan, pNtk1, pNtk2, MO);
 
             if (inputSolverMode == 3) {
-                auto Mapping = Bmatch_SolveInputQbf(pMan, pNtk1, pNtk2, MO_new);
+                auto Mapping = Bmatch_SolveInputQbf(pMan, pNtk1, pNtk2, MO);
                 result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
                 MI = Mapping.MI;
             } else {
                 while (ret && result.status != EQUIVALENT && iter++ < maxIter) {
-                    ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO_new);
+                    ret &= Bmatch_PruneInputSolverByCounterPart(pMan, pNtk1, pNtk2, result.model, MI, MO);
                     ret &= Bmatch_PruneInputSolverBySymmetry(pMan, MI);
                     if (!ret) break;
                     auto Mapping = Bmatch_SolveInput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
                     if (Mapping.status == 0) break;
                     MI = Mapping.MI;
 
-                    // result = Bmatch_NtkEcGia(pNtk1, pNtk2, MI, MO_new); // trash
-                    result = (inputSolverMode == 1) ? Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO_new)
+                    // result = Bmatch_NtkEcGia(pNtk1, pNtk2, MI, MO); // trash
+                    result = (inputSolverMode == 1) ? Bmatch_NtkControllableInputOutputEcFraig(pMan, pNtk1, pNtk2, MI, MO)
                         : (inputSolverMode == 2) ? Bmatch_NtkControllableInputEcFraig(pMan, pNtk1, pNtk2, MI)
-                        :                          Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO_new, 1, 0);
+                        :                          Bmatch_NtkEcFraig(pNtk1, pNtk2, MI, MO, 1, 0);
                 }
             }
         }
 
-        // Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
-
         if (result.status == EQUIVALENT) {
             printf("Find matching at iteration %d!!!\n", iter);
-            Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+            Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO);
             Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
 
             int score = 0;
-            for (int i = 0; i < MO_new.size(); ++i) {
-                score += (int)!MO_new[i].empty() + MO_new[i].size();
+            for (int i = 0; i < MO.size(); ++i) {
+                score += (int)!MO[i].empty() + MO[i].size();
             }
-            optimal = score == 2*Abc_NtkPoNum(pNtk2);
+            optimal = score == Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2);
             if (score > best) {
                 Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
                 printf("Optimal: %d Current: %d\n", 2*Abc_NtkPoNum(pNtk2), best = score);
-                Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO_new);
+                Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO);
             }
         } else {
             if (option & VERBOSE_DETAIL_MASK) {
@@ -296,7 +255,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         tried++;
     }
     printf("Output Solver tried %d times\n", tried);
-    printf("Best score: %d\n", best);
+    printf("Optimal: %d Best score: %d\n", Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2), best);
     Abc_PrintTime(1, "Total time", Abc_Clock() - clkTotal);
 }
 
