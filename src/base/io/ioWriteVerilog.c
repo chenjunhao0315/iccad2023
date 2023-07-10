@@ -557,23 +557,9 @@ void Io_WriteVerilogObjects( FILE * pFile, Abc_Ntk_t * pNtk, int fOnlyAnds )
     }
     else
     {
-        Vec_Int_t * vMap = Vec_IntStartFull( 2*Abc_NtkObjNumMax(pNtk) );
         vLevels = Vec_VecAlloc( 10 );
         Abc_NtkForEachNode( pNtk, pObj, i )
         {
-            if ( Abc_ObjFaninNum(pObj) == 1 || Abc_ObjIsCo(Abc_ObjFanout0(Abc_ObjFanout0(pObj))) )
-            {
-                int iLit = Abc_Var2Lit( Abc_ObjId( Abc_ObjFanin0(Abc_ObjFanin0(pObj)) ), Abc_NodeIsInv(pObj) );
-                int iObj = Vec_IntEntry( vMap, iLit );
-                if ( iObj == -1 )
-                    Vec_IntWriteEntry( vMap, iLit, Abc_ObjId(Abc_ObjFanout0(pObj)) );
-                else
-                {
-                    fprintf( pFile, "  assign %s = ", Io_WriteVerilogGetName(Abc_ObjName(Abc_ObjFanout0(pObj))) );
-                    fprintf( pFile, "%s;\n", Io_WriteVerilogGetName(Abc_ObjName(Abc_NtkObj(pNtk, iObj))) );
-                    continue;
-                }
-            }
             pFunc = (Hop_Obj_t *)pObj->pData;
             fprintf( pFile, "  assign %s = ", Io_WriteVerilogGetName(Abc_ObjName(Abc_ObjFanout0(pObj))) );
             // set the input names
@@ -581,21 +567,12 @@ void Io_WriteVerilogObjects( FILE * pFile, Abc_Ntk_t * pNtk, int fOnlyAnds )
                 Hop_IthVar((Hop_Man_t *)pNtk->pManFunc, k)->pData = Extra_UtilStrsav(Io_WriteVerilogGetName(Abc_ObjName(pFanin)));
             // write the formula
             Hop_ObjPrintVerilog( pFile, pFunc, vLevels, 0, fOnlyAnds );
-            if ( pObj->fPersist )
-            {
-                Abc_Obj_t * pFan0 = Abc_ObjFanin0(Abc_ObjFanin(pObj, 0));
-                Abc_Obj_t * pFan1 = Abc_ObjFanin0(Abc_ObjFanin(pObj, 1));
-                int Cond = Abc_ObjIsNode(pFan0) && Abc_ObjIsNode(pFan1) && !pFan0->fPersist && !pFan1->fPersist;
-                fprintf( pFile, "; // MUXF7 %s\n", Cond ? "":"to be legalized" );
-            }
-            else
             fprintf( pFile, ";\n" );
             // clear the input names
             Abc_ObjForEachFanin( pObj, pFanin, k )
                 ABC_FREE( Hop_IthVar((Hop_Man_t *)pNtk->pManFunc, k)->pData );
         }
         Vec_VecFree( vLevels );
-        Vec_IntFree( vMap );
     }
 }
 

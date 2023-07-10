@@ -387,7 +387,7 @@ void Hop_ObjPrintVerilog( FILE * pFile, Hop_Obj_t * pObj, Vec_Vec_t * vLevels, i
         return;
     }
     // EXOR case
-    if ( !fOnlyAnds && Hop_ObjIsExor(pObj) )
+    if ( Hop_ObjIsExor(pObj) )
     {
         Vec_VecExpand( vLevels, Level );
         vSuper = Vec_VecEntry( vLevels, Level );
@@ -403,7 +403,7 @@ void Hop_ObjPrintVerilog( FILE * pFile, Hop_Obj_t * pObj, Vec_Vec_t * vLevels, i
         return;
     }
     // MUX case
-    if ( !fOnlyAnds && Hop_ObjIsMuxType(pObj) )
+    if ( Hop_ObjIsMuxType(pObj) )
     {
         if ( Hop_ObjRecognizeExor( pObj, &pFanin0, &pFanin1 ) )
         {

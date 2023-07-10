@@ -39,8 +39,6 @@ extern "C"
     void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat);
     void Bmatch_CalEqual(vEqual &oEqual1, Abc_Ntk_t *pNtk);
     void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose);
-    void Bmatch_DegreePrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-    void Bmatch_MintermPrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
     void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);
 
 #ifdef __cplusplus
@@ -69,17 +67,6 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     printf("Calculate Bdd\n");
     Bmatch_BddConstruct(pMan, pNtk1, pNtk2, 1);
 
-    // signature for pp equi
-    // degree -> size of vSupp
-    printf("degree prune\n");
-    Bmatch_DegreePrune(pMan, pNtk1, pNtk2);
-    // minterm
-    // Bmatch_MintermPrune(pMan, pNtk1, pNtk2);
-    // unateness
-
-    // sign
-
-    // sim type1
 
     // Structural support information
     printf("Calculate Structural support information...");
@@ -120,14 +107,14 @@ void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
     // FILE* test;
 
     // DdManager* pBdd1 = Aig_ManComputeGlobalBdds(pAig1, 80000000, 1, 0 ,fVerbose);
-    auto pBdd1 = Abc_NtkBuildGlobalBdds(pNtk1, 80000000, 1, 0, 0, fVerbose);
+    auto pBdd1 = Abc_NtkBuildGlobalBdds(pNtk1, 80000000, 1, 1, 1, fVerbose);
     pMan->bdd1 = (DdManager *)pBdd1;
     // if(fVerbose) std::cout<<"bdd1 size:"<<Aig_ManSizeOfGlobalBdds(pAig1)<<std::endl;
     if (fVerbose)
         std::cout << "bdd1 size:" << Abc_NtkSizeOfGlobalBdds(pNtk1) << std::endl;
     // Cudd_PrintInfo(pBdd1, test);
     // DdManager* pBdd2 = Aig_ManComputeGlobalBdds(pAig2, 80000000, 1, 0 ,fVerbose);
-    auto pBdd2 = Abc_NtkBuildGlobalBdds(pNtk2, 80000000, 1, 0, 0, fVerbose);
+    auto pBdd2 = Abc_NtkBuildGlobalBdds(pNtk2, 80000000, 1, 1, 0, fVerbose);
     pMan->bdd2 = (DdManager *)pBdd2;
     // if(fVerbose) std::cout<<"bdd2 size:"<<Aig_ManSizeOfGlobalBdds(pAig2)<<std::endl;
     if (fVerbose)
@@ -136,54 +123,8 @@ void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
     return;
 }
 
-void Bmatch_DegreePrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
-{
 
-#define DEGREE_PARTITION(FuncSupp, Partition)                     \
-    do                                                            \
-    {                                                             \
-        std::map<int, int> buffer;                                \
-        std::vector<int> temp;                                    \
-        for (int i = 0, n = FuncSupp.size(); i < n; i++)          \
-        {                                                         \
-            buffer.insert(std::make_pair(i, FuncSupp[i].size())); \
-        }                                                         \
-        for (int i = 0, n = buffer.size(); i < n; i++)            \
-        {                                                         \
-            while (buffer[i] + 1 > Partition.size())              \
-            {                                                     \
-                Partition.emplace_back(temp);                     \
-            }                                                     \
-            Partition[buffer[i]].emplace_back(i);                 \
-        }                                                         \
-        buffer.clear();                                           \
-    } while (0)
 
-    DEGREE_PARTITION(pMan->iFuncSupp1, pMan->iPartition1);
-    DEGREE_PARTITION(pMan->iFuncSupp2, pMan->iPartition2);
-    DEGREE_PARTITION(pMan->oFuncSupp1, pMan->oPartition1);
-    DEGREE_PARTITION(pMan->oFuncSupp2, pMan->oPartition2);
-
-    printf("degree end\n");
-    Bmatch_PrintPartition(pMan);
-}
-
-void Bmatch_MintermPrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
-{
-    // DdManager *bdd1 = pMan->bdd1;
-    // DdManager *bdd2 = pMan->bdd2;
-
-    // int i;
-    // Abc_Obj_t *pObj;
-    // std::map<int, DdApaNumber> buffer;
-
-    // Abc_NtkForEachPo(pNtk1, pObj, i)
-    // {
-    //     DdApaNumber count = Cudd_ApaCountMinterm(bdd1, (DdNode *)Abc_ObjGlobalBdd(pObj), 2);
-    //     buffer.insert(std::make_pair(i, count));
-    // }
-    // for(auto &i)
-}
 
 void Bmatch_CalUnate(Abc_Ntk_t *pNtk, Mat &unateMat)
 {

@@ -85,6 +85,7 @@ void Bmatch_InitInputControl(Bmatch_Man_t *pMan, int offset) {
 InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
     Abc_Ntk_t *pNtkMiter = Bmatch_NtkControllableInputMiter(pNtk1, pNtk2, MO, 1);
+    printf("Solving miter nodes: %d\n", Abc_NtkNodeNum(pNtkMiter));
     Aig_Man_t *pAig = Abc_NtkToDar(pNtkMiter, 0, 0);
     Gia_Man_t *pGia = Gia_ManFromAig(pAig);
 
@@ -117,11 +118,10 @@ InputMapping Bmatch_SolveInputQbf(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
             int decode = 0;
             for (int j = nControlPi - 1; j >= 0; --j) {
                 int value = (1 << j) * Vec_IntEntry(vControl, i * (nControlPi + 1) + j);
-                // decode += value;
-                // if (decode >= Abc_NtkPiNum(pNtk2) + 1)
-                //     decode -= value;
+                decode += value;
+                if (decode >= Abc_NtkPiNum(pNtk2) + 1)
+                    decode -= value;
                 // printf("decode + value: %d Abc_NtkPiNum(pNtk1): %d\n", decode + value, Abc_NtkPiNum(pNtk1));
-                decode = std::min(decode + value, Abc_NtkPiNum(pNtk1));
             }
             decode = decode * 2 + Vec_IntEntry(vControl, i * (nControlPi + 1) + nControlPi);
             // printf("Decode: %d %d\n", decode, pMan->mi);

@@ -1,6 +1,7 @@
 #include "bmatch.hpp"
 #include <vector>
 #include <algorithm>
+#include <map>
 
 // #include "print.hpp"
 
@@ -21,6 +22,8 @@ void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m);
 bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m, int verbose);
 void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
 
+void Bmatch_OutputLearnCase6(Bmatch_Man_t *pMan, int n, int m);
+
 #ifdef __cplusplus
 }
 #endif
@@ -34,6 +37,9 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
 // #define OUTPUT_MAPPING vMatch MO_test = {{}, {Literal(1, false)}, {}, {}};
 // case 0
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, false)}, {}, {Literal(1, false), Literal(2, true)}};
+
+// case 1
+// #define OUTPUT_MAPPING vMatch MO = {{Literal()}};
 
 // case 10
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(1, true)}, {Literal(0, true)}};
@@ -49,7 +55,7 @@ void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
 
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(0, true)}, {Literal(1, true)}, {Literal(2, true)}, {Literal(3, true)}};
 // #define OUTPUT_MAPPING vMatch MO = {{Literal(3)}, {Literal(2)}, {Literal(1)}, {Literal(0)}};
-#define OUTPUT_MAPPING vMatch MO = {{}, {}, {Literal(1)}, {Literal(3)}};
+#define OUTPUT_MAPPING vMatch MO = {{Literal(0)}, {Literal(1)}, {Literal(2)}, {Literal(3)}};
 
 OUTPUT_MAPPING
 
@@ -57,26 +63,31 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     int maxIter = 100000, iter = 0, tried = 0, best = 0;
     int ret = 1;
     int OutputSolveMode = 1;
-    int InputSolveMode = 0;
-    int mode = 0;
+    // int InputSolverMode = 5;
+    int mode = 3;
     EcResult result;
 
-    Abc_NtkPrintIo(stdout, pNtk1, 0);
-    Abc_NtkPrintIo(stdout, pNtk2, 0);
+    // Abc_NtkPrintIo(stdout, pNtk1, 0);
+    // Abc_NtkPrintIo(stdout, pNtk2, 0);
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
-    if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintSymm(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
+    // if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
 
-    int inputSolverMode = 0;
+    //pp 
+    vMatch PP_M;
+    PP_M = Bmatch_PPCheck(pMan, pNtk1, pNtk2);
+
+
+    //np3
+    int inputSolverMode = 5;
     if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
     }
-    inputSolverMode = 3;
-    inputSolverMode = 3;
+    // inputSolverMode = 4;
 
     //preprocess
     if (inputSolverMode == 1) Bmatch_InitControllableInputOutputMiter(pMan, pNtk1, pNtk2);
@@ -86,18 +97,45 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     ret &= Bmatch_PruneOutputSolverByUnate(pMan, pNtk1, pNtk2);
 
     if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
+    printf("Optimal: %d\n", 2*Abc_NtkPoNum(pNtk2));
 
     abctime clkTotal = Abc_Clock();
 
     vMatch MI, MO_new;
+    vMatch MO_try(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
     // MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
     // Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
     // vMatch_Group MO;
     bool optimal = false;
+
+    // //case6
+    // int c1, c2 = 0;
+    // std::vector<std::pair<int, int> >temp;
+    // // std::cout<<c1<<" "<<c2<<std::endl;
+    // while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
+    //     if(pMan->oPartition1[c1].size() == 0 ){
+    //         c1++;
+    //     }
+
+    //     if(pMan->oPartition2[c2].size() == 0 ){
+    //         c2++;
+    //     }
+        
+    //     if((pMan->oPartition1[c1].size() != 0) && (pMan->oPartition2[c2].size() != 0)){
+    //         // std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
+    //         temp.emplace_back(std::make_pair(pMan->oPartition1[c1][0], pMan->oPartition2[c2][0]));
+    //         c1++;
+    //         c2++;
+                        
+    //     }
+        
+    //     // if(c1 != c2) break; 
+    // }
+
     while (!optimal && ret) {
         //find new pair of output matching
         EcResult result;
-        if(mode == 0){
+        if(mode == 0 ){
             MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
             // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         }
@@ -116,18 +154,32 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
                 if(MO_new.size() == 0) return;
                 Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
             }
+           
+           
         }
+        // else if(mode == 3){
+        //     MO_try[temp[counter].first].push_back(Literal(temp[counter].second, true));
+        //     std::cout<<temp[counter].first<<" "<<temp[counter].second<<std::endl;
+        // }
 
 
         // MO_new = MO;
-        // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
-        if (MO_new.size() == 0) { break;}
+        // if (MO_new.size() == 0) { break;} //all path traced
+
+        
+
+        
 
        
         
         //input solve
-        if (inputSolverMode == 4) {
+        if (inputSolverMode == 5) {
+            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO_new);
+            result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
+            MI = Mapping.MI;
+        } else if (inputSolverMode == 4) {
             Bmatch_InitQbfInputSolver(pMan, pNtk1, pNtk2);
             Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO_new);
             Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO_new);
@@ -184,12 +236,16 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
                 printf("Optimal: %d Current: %d\n", 2*Abc_NtkPoNum(pNtk2), best = score);
                 Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO_new);
             }
+
         } else {
             if (option & VERBOSE_DETAIL_MASK) {
                 if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
                 else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
             }
             Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            // Bmatch_OutputLearnCase6(pMan, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            
+
         }
         iter = 0;
         ret = 1;
@@ -233,6 +289,17 @@ void Bmatch_WriteOutput(char *output, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch
     }
 
     fclose(f);
+}
+
+void Bmatch_OutputLearnCase6(Bmatch_Man_t *pMan, int n, int m){
+    vMatch_Group &MO = pMan->MO;
+    AutoBuffer<int> pLits(n*m+1, 0);
+    for(int i = 0; i<MO[0].size(); i++){
+        pLits[i] = Bmatch_toLitCond(MO[0][i], 1);
+    }
+    Bmatch_sat_solver_addclause(pMan->pOutputSolver, pLits, pLits + MO[0].size());
+    pMan->MO.pop_back();
+
 }
 
 void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
@@ -441,7 +508,7 @@ vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2
                 bool add = true;
                 for(int k=0; k<MO.size(); k++){
                     if(std::find(MO[k].begin(), MO[k].end(), i*m+j) != MO[k].end()){
-                        add = false;
+                        add = false; 
                         break;
                     }
                 }
@@ -564,6 +631,32 @@ void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pN
         }
     }
     // std::cout<<std::endl;
+
+    //test case6
+    int c1, c2 = 0;
+    std::cout<<c1<<" "<<c2<<std::endl;
+    while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
+        if(pMan->oPartition1[c1].size() == 0 ){
+            c1++;
+        }
+
+        if(pMan->oPartition2[c2].size() == 0 ){
+            c2++;
+        }
+        
+        if((pMan->oPartition1[c1].size() != 0) && (pMan->oPartition2[c2].size() != 0)){
+            std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
+            pLits[0] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m);
+            pLits[1] = Bmatch_toLit(pMan->oPartition1[c1][0]*2 + pMan->oPartition2[c2][0]*m+1);
+            Bmatch_sat_solver_addclause(pSolver, pLits, pLits + 2);
+            c1++;
+            c2++;
+                        
+        }
+        // if(c1 != c2) break; 
+    }
+    
+
     
     // allow projection
     pMan->AllowProjection = false;
@@ -613,6 +706,7 @@ void Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan) {
         if (i >= 0) group.first.emplace_back(std::get<PO>(supp1[i]));
         if (j >= 0) group.second.emplace_back(std::get<PO>(supp2[j]));
 
+        // suppFunc1 = std::get<SUPPFUNC>(supp1[i]);
         suppFunc1 = std::max(suppFunc1, std::get<SUPPFUNC>(supp1[i]));
         suppFunc2 = (j - 1 >= 0) ? std::get<SUPPFUNC>(supp2[j - 1]) : std::get<SUPPFUNC>(supp2[0]);
 

@@ -36,9 +36,34 @@ Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSigna
 Abc_Obj_t *Bmatch_NtkCreateParallelCase(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal);
 Abc_Obj_t *Bmatch_NtkCreateMultiplexer(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal, int dontApplyNot);
 
+void Bmatch_NtkBuildWithCone(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkNew, std::vector<int> &outs);
+
 #ifdef __cplusplus
 }
 #endif
+
+void Bmatch_NtkBuildWithCone(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkNew, std::vector<int> &outs) {
+    Abc_Obj_t *pObj;
+    int i;
+
+    std::set<Abc_Obj_t *> cone_s;
+    std::vector<Abc_Obj_t *> cone_v;
+    for (auto &out : outs) {
+        Vec_Ptr_t * vNodes;
+        Abc_Obj_t *pOut = Abc_NtkPo(pNtk, out);
+        vNodes = Abc_NtkDfsNodes( pNtk, &pOut, 1 );
+        Vec_PtrForEachEntry(Abc_Obj_t *, vNodes, pObj, i) {
+            if (cone_s.count(pObj) == 0)
+                cone_v.push_back(pObj);
+            cone_s.insert(pObj);
+        }
+        Vec_PtrFree( vNodes );
+    }
+
+    for (auto &pObj : cone_v) {
+        pObj->pCopy = Abc_AigAnd( (Abc_Aig_t *)pNtkNew->pManFunc, Abc_ObjChild0Copy(pObj), Abc_ObjChild1Copy(pObj) );
+    }
+}
 
 Abc_Ntk_t *Bmatch_NtkMiter(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
     char Buffer[100];
@@ -502,7 +527,10 @@ Abc_Obj_t *Bmatch_NtkCreateAndRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSi
 }
 
 Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal) {
-    return Bmatch_NtkCreateAndRec(pMan, pSignal, 0, pSignal.size() - 1);
+    if (pSignal.empty())
+        return NULL;
+    else
+        return Bmatch_NtkCreateAndRec(pMan, pSignal, 0, pSignal.size() - 1);
 }
 
 Abc_Obj_t *Bmatch_NtkCreateOrRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal, int start, int end) {
@@ -520,7 +548,10 @@ Abc_Obj_t *Bmatch_NtkCreateOrRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSig
 }
 
 Abc_Obj_t *Bmatch_NtkCreateOr(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal) {
-    return Bmatch_NtkCreateOrRec(pMan, pSignal, 0, pSignal.size() - 1);
+    if (pSignal.empty()) 
+        return NULL;
+    else
+        return Bmatch_NtkCreateOrRec(pMan, pSignal, 0, pSignal.size() - 1);
 }
 
 ABC_NAMESPACE_IMPL_END
