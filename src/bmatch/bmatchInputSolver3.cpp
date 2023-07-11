@@ -32,8 +32,10 @@ void Bmatch_NtkCreateSortingCircuit(Abc_Ntk_t *pNtkMiter, std::vector<Abc_Obj_t 
 Abc_Ntk_t *Bmatch_NtkQbfMiter3(Bmatch_Man_t *pManBmatch, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
 Mat Bmatch_CalculatePossibleMI(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 Mat Bmatch_CalculatePossibleMO(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
-
 InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+
+Mat Bmatch_CalculatePossibleMI2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+Mat Bmatch_CalculatePossibleMO2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
 #ifdef __cplusplus
@@ -41,7 +43,226 @@ InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 #endif
 
 InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+    vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
+    Mat possibleMI(Abc_NtkPiNum(pNtk2), std::vector<int>(2 * (Abc_NtkPiNum(pNtk1) + 1), 1));
+    Mat possibleMO(Abc_NtkPoNum(pNtk2), std::vector<int>(2 * Abc_NtkPoNum(pNtk1), 0));
+    auto &oStrSupp1 = pMan->oStrSupp1;
+    auto &oStrSupp2 = pMan->oStrSupp2;
 
+    struct SortSupp {
+        int id;
+        std::set<int> supp;
+    };
+    std::vector<SortSupp> supp1, supp2;
+    for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i)
+        supp1.push_back({i, oStrSupp1[i]});
+    for (int i = 0; i < Abc_NtkPoNum(pNtk2); ++i)
+        supp2.push_back({i, oStrSupp2[i]});
+    std::sort(supp1.begin(), supp1.end(), [](SortSupp &a, SortSupp &b) { return a.supp.size() < b.supp.size(); });
+    std::sort(supp2.begin(), supp2.end(), [](SortSupp &a, SortSupp &b) { return a.supp.size() < b.supp.size(); });
+
+    int poNum1 = Abc_NtkPoNum(pNtk1), poNum2 = Abc_NtkPoNum(pNtk2);
+    int cur1 = 0, cur2 = 0, lsMatch = 0;
+    while (cur2 < poNum2) {
+        int suppNum2 = supp2[cur2].supp.size();
+        while (cur1 < poNum1 && supp1[cur1].supp.size() <= suppNum2)
+            ++cur1;
+
+        int gi = supp2[cur2].id;
+
+        std::set<int> allsupp1;
+        for (int i = lsMatch; i < cur1; ++i) {
+            int fi = supp1[i].id;
+            possibleMO[gi][2 * fi + 0] = 1;
+            possibleMO[gi][2 * fi + 1] = 1;
+            allsupp1.insert(oStrSupp1[fi].begin(), oStrSupp1[fi].end());
+        }
+
+        for (int xi = 0; xi < Abc_NtkPiNum(pNtk1); ++xi) {
+            if (allsupp1.count(xi)) continue;
+            for (auto yi : oStrSupp2[gi]) {
+                possibleMI[yi][xi * 2 + 0] = 0;
+                possibleMI[yi][xi * 2 + 1] = 0;
+            }
+        }
+
+        if (cur1 <= cur2 + 1) 
+            lsMatch = cur1;
+        ++cur2;
+    }
+
+    printf("possibleMI\n");
+    for (int i = 0; i < possibleMI.size(); ++i) {
+        for (int j = 0; j < possibleMI[i].size(); ++j) {
+            printf("%d ", possibleMI[i][j]);
+        }
+        printf("\n");
+    }
+    printf("possibleMO\n");
+    for (int i = 0; i < possibleMO.size(); ++i) {
+        for (int j = 0; j < possibleMO[i].size(); ++j) {
+            printf("%d ", possibleMO[i][j]);
+        }
+        printf("\n");
+    }
+
+    int limit_1 = 0;
+    int limit_2 = 0;
+
+    int try_freeze = 0, failed_freeze = 0;
+    int best_score = 0;
+    // int ideal_max_score = Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2);
+    int ideal_max_score = 2 * Abc_NtkPoNum(pNtk1);
+    printf("ideal maximal score: %d\n", ideal_max_score);
+
+    Mat possibleMIOld = possibleMI;
+    Mat possibleMOOld = possibleMO;
+
+    while (best_score < ideal_max_score) {
+        while (limit_1 < Abc_NtkPoNum(pNtk1) - 1) {
+            if (supp1[limit_1].supp.size() == supp1[limit_1 + 1].supp.size()) {
+                ++limit_1;
+            } else {
+                break;
+            }
+        }
+        while (limit_2 < Abc_NtkPoNum(pNtk2) - 1) {
+            if (supp2[limit_2].supp.size() == supp2[limit_2 + 1].supp.size()) {
+                ++limit_2;
+            } else {
+                break;
+            }
+        }
+
+        for (int i = limit_1 + 1; i < Abc_NtkPoNum(pNtk1); ++i) {
+            int fi = supp1[i].id;
+            for (int gi = 0; gi < Abc_NtkPoNum(pNtk2); gi++) {
+                possibleMO[gi][2 * fi + 0] = 0;
+                possibleMO[gi][2 * fi + 1] = 0;
+            }
+        }
+        for (int i = limit_2 + 1; i < Abc_NtkPoNum(pNtk2); ++i) {
+            int gi = supp2[i].id;
+            for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); fi++) {
+                possibleMO[gi][2 * fi + 0] = 0;
+                possibleMO[gi][2 * fi + 1] = 0;
+            }
+        }
+
+        int all_zero = 1;
+        for (int i = 0; i < 2 * Abc_NtkPoNum(pNtk1); i++) {
+            for (int j = 0; j < Abc_NtkPoNum(pNtk2); j++) {
+                if (possibleMO[j][i] != 0) {
+                    all_zero = 0;
+                    break;
+                }
+            }
+        }
+
+        int should_reset = 1, should_go = 1;
+
+        if (!all_zero) {
+            int num_matchPo_1 = 0, num_matchPo_2 = 0;
+            int nPo_1 = limit_1 + 1;
+            int nPo_2 = limit_2 + 1;
+            int best_nGroup = 0;
+            Vec_Int_t *vPiValues = Vec_IntAlloc(0);
+
+            Abc_Ntk_t *pNtkTemp;
+            Abc_Ntk_t *pNtkMiter = Bmatch_NtkQbfMiter3(pMan, pNtk1, pNtk2, possibleMI, possibleMO);
+            int nControlPi = Abc_NtkPiNum(pNtk2) * (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1))));
+            int nControlPo = Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) * 2;
+            int nPars = nControlPi + nControlPo;
+
+            int nControlSortMain = Abc_NtkPoNum(pNtk1);
+            int nControlSortSub  = Abc_NtkPoNum(pNtk2);
+
+            int assert_index = nControlSortMain - nPo_1;
+
+            while (assert_index + best_nGroup < nControlSortMain) {
+                Abc_Obj_t *pOut = Abc_NtkPo(pNtkMiter, assert_index);
+                Abc_Ntk_t *pNtkCone = Abc_NtkCreateCone(pNtkMiter, Abc_ObjFanin0(pOut), Abc_ObjName(pOut), 1);
+                if (Abc_ObjFaninC0(pOut))
+                    Abc_NtkPo(pNtkCone, 0)->fCompl0  ^= 1;
+                pNtkCone = Abc_NtkDC2( pNtkTemp = pNtkCone, 0, 0, 1, 0, 0 );
+                Abc_NtkDelete(pNtkTemp);
+
+                Aig_Man_t * pAig = Abc_NtkToDar( pNtkCone, 0, 0 );
+                Gia_Man_t * pGia = Gia_ManFromAig( pAig );
+                Bmatch_Qbf_Man_t *pQbfMan = Bmatch_Gia_QbfAlloc(pGia, nPars, 0);
+
+                abctime clkStart = Abc_Clock();
+                int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
+                // int result = Gia_QbfSolveValue(pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
+                ABC_PRT( "Time:", Abc_Clock() - clkStart );
+
+                assert(nPars == Vec_IntSize(vPiValues));
+                Bmatch_Gia_QbfFree(pQbfMan);
+                Gia_ManStop( pGia );
+                Aig_ManStop( pAig );
+                Abc_NtkDelete(pNtkCone);
+                if (result == 1) {
+                    assert_index++;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            num_matchPo_1 = num_matchPo_2 = nControlSortMain - assert_index;
+            if (best_nGroup < num_matchPo_1)
+                best_nGroup = num_matchPo_1;
+            best_score = num_matchPo_1 + num_matchPo_2;
+            printf("best_score: %d\n", best_score);
+
+            int nControl = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1))));
+            for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
+                int decode = 0;
+                for (int j = nControl - 1; j >= 0; --j) {
+                    int value = (1 << j) * Vec_IntEntry(vPiValues, i * nControl + j);
+                    decode += value;
+                    if (decode >= pMan->MapReduceMI[i].size())
+                        decode -= value;
+                }
+                decode = pMan->MapReduceMI[i][decode];
+                MI[decode / 2].push_back(Literal(i, decode & 1));
+            }
+
+            MO.clear();
+            MO = vMatch(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
+            for (int i = 0; i < Abc_NtkPoNum(pNtk1); i++) {
+                for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk2); j += 2) {
+                    if (Vec_IntEntry(vPiValues, nControlPi + i * Abc_NtkPoNum(pNtk2) * 2 + j) == 1) {
+                        MO[i].push_back(Literal(j / 2, false));
+                    } else if (Vec_IntEntry(vPiValues, nControlPi + i * Abc_NtkPoNum(pNtk2) * 2 + j + 1) == 1) {
+                        MO[i].push_back(Literal(j / 2, true));
+                    }
+                }
+            }
+        } else if (try_freeze) {
+            failed_freeze = 1;
+            should_reset = 1;
+            should_go = 0;
+            try_freeze = 0;
+        }
+
+        printf("%d %d\n", should_reset, should_go);
+
+        if (should_go) {
+            limit_1++;
+            limit_2++;
+            if (limit_1>=Abc_NtkPoNum(pNtk1) && limit_2>=Abc_NtkPoNum(pNtk2)) break;
+            if (limit_1 >= Abc_NtkPoNum(pNtk1)) limit_1 = Abc_NtkPoNum(pNtk1)-1;
+            if (limit_2 >= Abc_NtkPoNum(pNtk2)) limit_2 = Abc_NtkPoNum(pNtk2)-1;
+        }
+
+        possibleMO = possibleMIOld;
+        // reset matrix if we didn't freeze it...
+        if (should_reset) {
+            possibleMI = possibleMIOld;
+        }
+    }
+
+    return {1, MI};
 }
 
 InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
@@ -63,7 +284,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     int index = Abc_NtkPoNum(pNtk1) - target, result = -1;
 
-    // while (index < Abc_NtkPoNum(pNtk1)) {
+    while (index < Abc_NtkPoNum(pNtk1)) {
         Abc_Obj_t *pOut = Abc_NtkPo(pNtkMiter, index);
         Abc_Ntk_t *pNtkCone = Abc_NtkCreateCone(pNtkMiter, Abc_ObjFanin0(pOut), Abc_ObjName(pOut), 1);
         if (Abc_ObjFaninC0(pOut))
@@ -76,7 +297,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Bmatch_Qbf_Man_t *pQbfMan = Bmatch_Gia_QbfAlloc(pGia, nPars, 0);
 
         abctime clkStart = Abc_Clock();
-        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
+        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 0);
         // int result = Gia_QbfSolveValue(pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
         ABC_PRT( "Time:", Abc_Clock() - clkStart );
 
@@ -85,13 +306,13 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Gia_ManStop( pGia );
         Aig_ManStop( pAig );
         Abc_NtkDelete(pNtkCone);
-    //     if (result == 1) {
-    //         index++;
-    //         continue;
-    //     } else {
-    //         break;
-    //     }
-    // }
+        if (result == 1) {
+            index++;
+            continue;
+        } else {
+            break;
+        }
+    }
 
     if (Abc_NtkPoNum(pNtk1) - index != target) {
         printf("Target: %d MaxScore: %d\n", target,Abc_NtkPoNum(pNtk1) - index);
@@ -356,6 +577,53 @@ Mat Bmatch_CalculatePossibleMO(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
         for (auto fi : MO[gi]) {
             possibleMO[gi][fi.var() * 2 + fi.sign()] = 1;
             // possibleMO[gi][fi.var() * 2 + 1] = 1;
+        }
+    }
+
+    return possibleMO;
+}
+
+Mat Bmatch_CalculatePossibleMI2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    Mat possibleMI(Abc_NtkPiNum(pNtk2), std::vector<int>(2 * (Abc_NtkPiNum(pNtk1) + 1), 1));
+
+    return possibleMI;
+}
+
+Mat Bmatch_CalculatePossibleMO2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2) {
+    Mat possibleMO(Abc_NtkPoNum(pNtk2), std::vector<int>(2 * (Abc_NtkPoNum(pNtk1)), 0));
+
+    // support
+    auto &group = pMan->Groups;
+    for (auto &g : group) {
+        for (int i = 0; i < g.first.size(); ++i) {
+            for (int j = 0; j < g.second.size(); ++j) {
+                possibleMO[g.second[j]][g.first[i] * 2 + 0] = 1;
+                possibleMO[g.second[j]][g.first[i] * 2 + 1] = 1;
+            }
+        }
+    }
+
+    // unateness
+    Mat &unateMat1 = pMan->unateMat1;
+    Mat &unateMat2 = pMan->unateMat2;
+    AutoBuffer<int> binate1(Abc_NtkPoNum(pNtk1));
+    AutoBuffer<int> unate1(Abc_NtkPoNum(pNtk1));
+    AutoBuffer<int> binate2(Abc_NtkPoNum(pNtk2));
+    AutoBuffer<int> unate2(Abc_NtkPoNum(pNtk2));
+
+    Bmatch_GetUnateCount(unateMat1, binate1, unate1);
+    Bmatch_GetUnateCount(unateMat2, binate2, unate2);
+
+    for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i) {
+        int nSupp1 = binate1[i] + unate1[i];
+        int nEquivUnate1 = nSupp1 + binate1[i];
+        for (int j = 0; j < Abc_NtkPoNum(pNtk2); ++j) {
+            int nSupp2 = binate2[j] + unate2[j];
+            int nEquivUnate2 = nSupp2 + binate2[j];
+            if (nSupp2 < nSupp1 || nEquivUnate2 < nEquivUnate1) {
+                possibleMO[j][i * 2 + 0] = 0;
+                possibleMO[j][i * 2 + 1] = 0;
+            }
         }
     }
 

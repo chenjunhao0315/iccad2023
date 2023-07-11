@@ -530,7 +530,7 @@ Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSigna
     if (pSignal.empty())
         return NULL;
     else
-        return Bmatch_NtkCreateAndRec(pMan, pSignal, 0, pSignal.size() - 1);
+        return Bmatch_NtkCreateAndRec(pMan, pSignal, 0, (int)pSignal.size() - 1);
 }
 
 Abc_Obj_t *Bmatch_NtkCreateOrRec(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal, int start, int end) {
@@ -551,7 +551,7 @@ Abc_Obj_t *Bmatch_NtkCreateOr(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pSignal
     if (pSignal.empty()) 
         return NULL;
     else
-        return Bmatch_NtkCreateOrRec(pMan, pSignal, 0, pSignal.size() - 1);
+        return Bmatch_NtkCreateOrRec(pMan, pSignal, 0, (int)pSignal.size() - 1);
 }
 
 ABC_NAMESPACE_IMPL_END

@@ -12,4 +12,8 @@ SRC += src/bmatch/bmatch.cpp         \
        src/bmatch/bmatchQbf.cpp     \
        src/bmatch/bmatchInputSolver2.cpp \
        src/bmatch/bmatchInputSolver3.cpp \
+<<<<<<< HEAD
        src/bmatch/bmatchPPEquivelence.cpp  \
+=======
+       src/bmatch/bmatchPPEquivelence.cpp
+>>>>>>> 1ce74bc9dbe7bef71886d1fd512e333d5c66be12

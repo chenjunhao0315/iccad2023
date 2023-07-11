@@ -20,7 +20,7 @@ extern "C"
 
 vMatch Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
 {
-    printf("degree prune\n");
+    // printf("degree prune\n");
     Bmatch_DegreePrune(pMan, pNtk1, pNtk2);
 
     std::map<int, std::vector<int>> PossibleListI, PossibleListO;
@@ -136,8 +136,8 @@ void Bmatch_DegreePrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
     DEGREE_PARTITION(pMan->oFuncSupp1, pMan->oPartition1);
     DEGREE_PARTITION(pMan->oFuncSupp2, pMan->oPartition2);
 
-    printf("degree end\n");
-    Bmatch_PrintPartition(pMan, pNtk1, pNtk2);
+    // printf("degree end\n");
+    // Bmatch_PrintPartition(pMan, pNtk1, pNtk2);
 }
 
 void Bmatch_SignPrune(Bmatch_Man_t *pMan, std::map<int, std::vector<int>> PossibleListI, std::map<int, std::vector<int>> PossibleListO, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
