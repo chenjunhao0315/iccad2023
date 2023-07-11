@@ -78,9 +78,6 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     // if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
 
-    //pp 
-    vMatch PP_M;
-    PP_M = Bmatch_PPCheck(pMan, pNtk1, pNtk2);
 
 
     //np3
@@ -141,7 +138,6 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
     }
     // vMatch_Group MO;
-    bool optimal = false;
 
 
     //for one to one partition case

@@ -18,7 +18,7 @@ extern "C"
 }
 #endif
 
-vMatch Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
+void Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
 {
     // printf("degree prune\n");
     Bmatch_DegreePrune(pMan, pNtk1, pNtk2);
@@ -28,8 +28,8 @@ vMatch Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
     // Bmatch_MintermPrune(pMan, PossibleListI, PossibleListO, pNtk1, pNtk2);
     // Bmatch_SignPrune(pMan, PossibleListI, PossibleListO, pNtk1, pNtk2);
 
-    vMatch test;
-    return test;
+    // vMatch test;
+    // return test;
 }
 
 void Bmatch_PPBusPrune(Bmatch_Man_t *pMan, std::map<int, std::vector<int>> PossibleListI, std::map<int, std::vector<int>> PossibleListO, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)

@@ -9,7 +9,6 @@
 #include <array>
 #include <cmath>
 #include <algorithm>
-
 #include "base/abc/abc.h"
 #include "aig/aig/aig.h"
 #include "bdd/cudd/cudd.h"
@@ -264,7 +263,7 @@ extern void Bmatch_PrintEqual(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *p
 extern void Bmatch_PrintPartition(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 //bmatchPPEquivelence.cpp
-extern vMatch Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 
 #ifdef __cplusplus
 }
