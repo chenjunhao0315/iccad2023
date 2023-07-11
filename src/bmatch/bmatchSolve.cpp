@@ -32,8 +32,8 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     vMatch MI, MO;
     bool optimal = false;
 
-    if (option & VERBOSE_MASK) Abc_NtkPrintIo(stdout, pNtk1, 0);
-    if (option & VERBOSE_MASK) Abc_NtkPrintIo(stdout, pNtk2, 0);
+    // if (option & VERBOSE_MASK) Abc_NtkPrintIo(stdout, pNtk1, 0);
+    // if (option & VERBOSE_MASK) Abc_NtkPrintIo(stdout, pNtk2, 0);
     if (option & VERBOSE_MASK) Bmatch_PrintBusInfo(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintInputSupport(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintOutputSupport(pMan, pNtk1, pNtk2);
@@ -41,10 +41,11 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
     // if (option & VERBOSE_MASK) Bmatch_PrintUnate(pMan, pNtk1, pNtk2);
     // if (option & VERBOSE_MASK) Bmatch_PrintEqual(pMan, pNtk1, pNtk2);
     Bmatch_SolveOutputGroup(pMan);
-    if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
+    // if (option & VERBOSE_MASK) Bmatch_PrintOutputGroup(pNtk1, pNtk2, pMan->Groups);
 
     int inputSolverMode = 4;
     int idealMax = Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2);
+    printf("\n-------------------------------------------------\n");
     printf("Optimal: %d\n", idealMax);
     abctime clkTotal = Abc_Clock();
 

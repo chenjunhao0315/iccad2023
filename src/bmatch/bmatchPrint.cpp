@@ -96,7 +96,7 @@ void Bmatch_PrintBusInfo(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
         Abc_Print(1, #TYPENAME);                                                    \
         Abc_Print(1, " bus:");                                                      \
         for (int i = 0; i < BIO.size(); ++i) {                                      \
-            Abc_Print(1, " (");                                                     \
+            Abc_Print(1, "\n    (");                                                     \
             for (int j = 0; j < BIO[i].size(); ++j) {                               \
                 Abc_Print(1, "%s", Abc_ObjName(Abc_Ntk##TYPE(pNtk, BIO[i][j])));    \
                 if (j != BIO[i].size() - 1) Abc_Print(1, ", ");                     \
