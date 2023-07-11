@@ -38,7 +38,7 @@ void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc
 void Bmatch_ReducePossibleMIbyBussssss(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 
-int Bmatch_GeneralCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
+int Bmatch_ExhaustingMatching(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 void Bmatch_CalculatePossibleMIMOStrict(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
 void Bmatch_CalculatePossibleMIMOLoose(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
 Abc_Ntk_t *Bmatch_NtkQbfCounterMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO, int allowMultipleMapping);
@@ -48,7 +48,7 @@ int Bmatch_SolveQbfInputSolver2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t 
 }
 #endif
 
-int Bmatch_GeneralCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
+int Bmatch_ExhaustingMatching(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO) {
     Mat possibleMI(Abc_NtkPiNum(pNtk2), std::vector<int>(2 * (Abc_NtkPiNum(pNtk1) + 1), 1));
     Mat possibleMO(Abc_NtkPoNum(pNtk2), std::vector<int>(1 * (Abc_NtkPoNum(pNtk1) + 0), 0));
 

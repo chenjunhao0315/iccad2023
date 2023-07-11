@@ -297,7 +297,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Bmatch_Qbf_Man_t *pQbfMan = Bmatch_Gia_QbfAlloc(pGia, nPars, 0);
 
         abctime clkStart = Abc_Clock();
-        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
+        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 0);
         // int result = Gia_QbfSolveValue(pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
         ABC_PRT( "Time:", Abc_Clock() - clkStart );
 
