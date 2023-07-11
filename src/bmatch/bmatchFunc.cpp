@@ -65,7 +65,7 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
 
     // bdd construct
     printf("Calculate Bdd\n");
-    Bmatch_BddConstruct(pMan, pNtk1, pNtk2, 1);
+    // Bmatch_BddConstruct(pMan, pNtk1, pNtk2, 1);
 
 
     // Structural support information
@@ -107,7 +107,7 @@ void Bmatch_BddConstruct(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2,
     // FILE* test;
 
     // DdManager* pBdd1 = Aig_ManComputeGlobalBdds(pAig1, 80000000, 1, 0 ,fVerbose);
-    auto pBdd1 = Abc_NtkBuildGlobalBdds(pNtk1, 80000000, 1, 1, 1, fVerbose);
+    auto pBdd1 = Abc_NtkBuildGlobalBdds(pNtk1, 80000000, 1, 1, 0, fVerbose);
     pMan->bdd1 = (DdManager *)pBdd1;
     // if(fVerbose) std::cout<<"bdd1 size:"<<Aig_ManSizeOfGlobalBdds(pAig1)<<std::endl;
     if (fVerbose)

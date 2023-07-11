@@ -21,6 +21,7 @@ void Bmatch_SolveOutputGroup(Bmatch_Man_t *pMan);
 void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m);
 bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m, int verbose);
 void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
+std::vector<std::pair<int, int> > Bmatch_OneToOneCheck(Bmatch_Man_t *pMan);
 
 void Bmatch_OutputLearnCase6(Bmatch_Man_t *pMan, int n, int m);
 
@@ -62,9 +63,8 @@ OUTPUT_MAPPING
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option, char *output) {
     int maxIter = 100000, iter = 0, tried = 0, best = 0;
     int ret = 1;
-    int OutputSolveMode = 1;
-    // int InputSolverMode = 5;
-    int mode = 0;
+    int OutputSolverMode = 3;
+    int inputSolverMode = 5;
     EcResult result;
 
     // Abc_NtkPrintIo(stdout, pNtk1, 0);
@@ -82,7 +82,6 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
 
     //np3
-    int inputSolverMode = 5;
     if (Abc_NtkPiNum(pNtk1) * Abc_NtkPiNum(pNtk2) < 50) {
         if (Abc_NtkPoNum(pNtk1) * Abc_NtkPoNum(pNtk2) < 50)
             inputSolverMode = 1;
@@ -103,43 +102,38 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
     vMatch MI, MO_new;
     vMatch MO_try(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
-    // MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
-    // Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+    if(OutputSolverMode == 0){
+        MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+        Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+    }
     // vMatch_Group MO;
     bool optimal = false;
 
-    // //case6
-    // int c1, c2 = 0;
-    // std::vector<std::pair<int, int> >temp;
-    // // std::cout<<c1<<" "<<c2<<std::endl;
-    // while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
-    //     if(pMan->oPartition1[c1].size() == 0 ){
-    //         c1++;
-    //     }
 
-    //     if(pMan->oPartition2[c2].size() == 0 ){
-    //         c2++;
-    //     }
-        
-    //     if((pMan->oPartition1[c1].size() != 0) && (pMan->oPartition2[c2].size() != 0)){
-    //         // std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
-    //         temp.emplace_back(std::make_pair(pMan->oPartition1[c1][0], pMan->oPartition2[c2][0]));
-    //         c1++;
-    //         c2++;
-                        
-    //     }
-        
-    //     // if(c1 != c2) break; 
-    // }
+    //for one to one partition case
+    std::vector<std::pair<int, int> >OneToOneMap;
+    int counter = 0;
+    bool neg = true;
+    int iterNeg = 0;
+    if(OutputSolverMode == 3){
+        OneToOneMap = Bmatch_OneToOneCheck(pMan);
+        if(OneToOneMap.size() == 0){
+            printf("not one to one map\n");
+            OutputSolverMode = 0;
+        }
+        else printf("one to one map\n");
+       
+    }
+
 
     while (!optimal && ret) {
         //find new pair of output matching
         EcResult result;
-        if(mode == 0 ){
+        if(OutputSolverMode == 0 ){
             MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
             // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         }
-        else if(mode == 1){// assume there is optimal
+        else if(OutputSolverMode == 1){// assume there is optimal
             while(true){
                 MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
                 Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
@@ -157,26 +151,27 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
            
            
         }
-        // else if(mode == 3){
-        //     MO_try[temp[counter].first].push_back(Literal(temp[counter].second, true));
-        //     std::cout<<temp[counter].first<<" "<<temp[counter].second<<std::endl;
-        // }
+        else if(OutputSolverMode == 3){
+            MO_try[OneToOneMap[counter].first].push_back(Literal(OneToOneMap[counter].second, neg));
+            // std::cout<<OneToOneMap[counter].first<<" "<<OneToOneMap[counter].second<<std::endl;
+        }
 
 
         // MO_new = MO;
-        Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+        //Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_test);
         // if (MO_new.size() == 0) { break;} //all path traced
 
         
-
-        
-
        
         
         //input solve
-        if (inputSolverMode == 5) {
+        if ((inputSolverMode == 5) && (OutputSolverMode == 0)) {
             auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO_new);
+            result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
+            MI = Mapping.MI;
+        } else if ((inputSolverMode == 5) && (OutputSolverMode == 3)) {
+            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO_try);
             result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             MI = Mapping.MI;
         } else if (inputSolverMode == 4) {
@@ -223,18 +218,31 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
         if (result.status == EQUIVALENT) {
             printf("Find matching at iteration %d!!!\n", iter);
-            Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
-            Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            if(OutputSolverMode == 0) {
+                Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
+                Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            }
+            else if(OutputSolverMode == 3) {
+                Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_try);
+                neg = true;
+                counter ++;
+                iterNeg = 0;
+            }
 
             int score = 0;
-            for (int i = 0; i < MO_new.size(); ++i) {
-                score += (int)!MO_new[i].empty() + MO_new[i].size();
+            if(OutputSolverMode == 0){
+                for (int i = 0; i < MO_new.size(); ++i) {
+                    score += (int)!MO_new[i].empty() + MO_new[i].size();
+                }
+            } else if(OutputSolverMode == 3){
+                score = counter*2;
             }
             optimal = score == 2*Abc_NtkPoNum(pNtk2);
             if (score > best) {
                 Abc_PrintTime(1, "Current time", Abc_Clock() - clkTotal);
                 printf("Optimal: %d Current: %d\n", 2*Abc_NtkPoNum(pNtk2), best = score);
-                Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO_new);
+                if(OutputSolverMode == 0) Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO_new);
+                else if(OutputSolverMode == 3) Bmatch_WriteOutput(output, pNtk1, pNtk2, MI, MO_try);
             }
 
         } else {
@@ -242,7 +250,16 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
                 if (iter - 1 == maxIter) printf("Reach maximum iteration (%d)!\n", maxIter);
                 else printf("Input Solver UNSAT Mapping is infeasible using %d iterations\n", iter);
             }
-            Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            if(OutputSolverMode == 0) Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+            else if(OutputSolverMode == 3) {
+                MO_try[OneToOneMap[counter].first].pop_back();
+                neg = false;
+                iterNeg++;
+            }
+            if(iterNeg > 1) {
+                printf("partition map fail");
+                OutputSolverMode = 0;
+            }
             // Bmatch_OutputLearnCase6(pMan, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
             
 
@@ -289,6 +306,38 @@ void Bmatch_WriteOutput(char *output, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch
     }
 
     fclose(f);
+}
+
+std::vector<std::pair<int, int> > Bmatch_OneToOneCheck(Bmatch_Man_t *pMan){
+    int c1, c2 = 0;
+    std::vector<std::pair<int, int> > mapping;
+    // std::cout<<c1<<" "<<c2<<std::endl;
+    while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
+        if((pMan->oPartition1[c1].size() > 1) || (pMan->oPartition2[c2].size() > 1)) {
+            std::cout<<"par1 size:"<<pMan->oPartition1[c1].size()<<" par2 size:"<<pMan->oPartition2[c2].size()<<std::endl;
+            mapping.clear();
+            return mapping;
+        }
+
+        if(pMan->oPartition1[c1].size() == 0 ){
+            c1++;
+        }
+
+        if(pMan->oPartition2[c2].size() == 0 ){
+            c2++;
+        }
+        
+        if((pMan->oPartition1[c1].size() == 1) && (pMan->oPartition2[c2].size() == 1)){
+            // std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
+            mapping.emplace_back(std::make_pair(pMan->oPartition1[c1][0], pMan->oPartition2[c2][0]));
+            c1++;
+            c2++;
+                        
+        }
+        
+        // if(c1 != c2) break; 
+    }
+    return mapping;
 }
 
 void Bmatch_OutputLearnCase6(Bmatch_Man_t *pMan, int n, int m){
