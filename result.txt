@@ -1,157 +1,108 @@
 INGROUP
-1 + n13
-2 - n439
-2 - n642
+1 + n16
+2 - n58
+2 - n222
+END
+INGROUP
+1 + n23
+2 + n24
+2 + n60
+2 - n100
+2 + n167
+END
+INGROUP
+1 + n24
+2 + n59
+2 + n69
+2 - n73
+2 - n143
+2 + n242
+END
+INGROUP
+1 + n41
+2 + n32
+2 + n218
+END
+INGROUP
+1 + n44
+2 + n97
+2 - n123
+2 + n206
+2 + n226
 END
 INGROUP
 1 + n46
-2 + n706
-2 + n742
+2 + n52
+2 + n96
+2 + n108
+2 - n209
 END
 INGROUP
-1 + n75
-2 - n537
+1 + n55
+2 + n49
 END
 INGROUP
-1 + n85
-2 + n111
+1 + n57
+2 - n19
+2 - n158
 END
 INGROUP
-1 + n93
-2 + n393
-2 + n403
-2 - n594
-END
-INGROUP
-1 + n96
-2 + n289
-END
-INGROUP
-1 + n131
-2 + n13
-2 + n409
-END
-INGROUP
-1 + n206
-2 + n300
-END
-INGROUP
-1 + n211
-2 + n473
-END
-INGROUP
-1 + n216
-2 + n249
-END
-INGROUP
-1 + n266
-2 + n511
-2 + n656
-END
-INGROUP
-1 + n349
-2 - n5
+1 + n62
 2 + n117
 END
 INGROUP
-1 + n409
-2 - n217
+1 + n72
+2 - n36
 END
 INGROUP
-1 + n428
-2 - n17
-2 + n606
-2 - n671
+1 + n84
+2 + n258
 END
 INGROUP
-1 + n457
-2 + n593
+1 + n92
+2 + n151
+2 + n197
+2 - n198
 END
 INGROUP
-1 + n511
-2 - n303
-2 + n365
-2 - n680
-2 - n693
+1 + n96
+2 + n196
 END
 INGROUP
-1 + n600
-2 - n106
-END
-INGROUP
-1 + n659
-2 + n684
-END
-INGROUP
-1 + n673
-2 - n157
+1 + n107
+2 - n210
 END
 OUTGROUP
-1 + n196
-2 - n753
+1 + n5
+2 + n29
 END
 OUTGROUP
-1 + n226
-2 - n430
+1 + n63
+2 + n76
 END
 OUTGROUP
-1 + n449
-2 - n175
+1 + n78
+2 + n152
+END
+OUTGROUP
+1 + n126
+2 + n248
+END
+OUTGROUP
+1 + n142
+2 + n194
+END
+OUTGROUP
+1 + n144
+2 + n224
+END
+OUTGROUP
+1 + n153
+2 + n245
 END
 CONSTGROUP
-+ n20
-+ n36
-+ n37
-+ n53
-+ n75
-+ n80
-+ n86
-+ n93
-+ n105
-+ n139
-+ n147
-+ n161
-+ n182
-+ n190
-+ n198
-+ n204
-+ n208
-+ n214
-+ n219
-+ n224
-+ n226
-+ n229
-+ n235
-+ n244
-+ n281
-+ n287
-+ n319
-+ n346
-+ n364
-+ n368
-+ n384
-+ n410
-+ n417
-+ n457
-+ n465
-+ n477
-+ n503
-+ n506
-+ n518
-+ n521
-+ n532
-+ n587
-+ n588
-+ n595
-+ n648
-+ n690
-+ n699
-+ n702
-+ n716
-+ n741
-+ n743
-+ n746
-+ n777
-+ n782
-+ n788
++ n149
++ n189
++ n217
+- n233
 END

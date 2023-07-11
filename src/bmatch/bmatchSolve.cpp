@@ -63,7 +63,7 @@ OUTPUT_MAPPING
 void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option, char *output) {
     int maxIter = 100000, iter = 0, tried = 0, best = 0;
     int ret = 1;
-    int OutputSolverMode = 3;
+    int OutputSolverMode = 0;
     int inputSolverMode = 5;
     EcResult result;
 
@@ -102,9 +102,9 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
     vMatch MI, MO_new;
     vMatch MO_try(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
-    if(OutputSolverMode == 0){
+    if(OutputSolverMode == 0 || OutputSolverMode == 1){
         MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
-        Bmatch_OutputLearn(pMan, true, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
+        Bmatch_OutputLearn(pMan, false, Abc_NtkPoNum(pNtk2), 2*Abc_NtkPoNum(pNtk1));
     }
     // vMatch_Group MO;
     bool optimal = false;
@@ -131,11 +131,13 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
         EcResult result;
         if(OutputSolverMode == 0 ){
             MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+            // std::cout<<pMan->MO.size()<<" "<<pMan->MO.back().size()<<std::endl;
             // Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
         }
         else if(OutputSolverMode == 1){// assume there is optimal
             while(true){
                 MO_new = Bmatch_SolveOutput(pMan, pNtk1, pNtk2, NULL, NULL, 0);
+                std::cout<<pMan->MO.size()<<" "<<pMan->MO.back().size()<<std::endl;
                 Bmatch_PrintMatching(pNtk1, pNtk2, MI, MO_new);
                 int score = 0;
                 for (int i = 0; i < MO_new.size(); ++i) {
@@ -312,22 +314,19 @@ std::vector<std::pair<int, int> > Bmatch_OneToOneCheck(Bmatch_Man_t *pMan){
     int c1, c2 = 0;
     std::vector<std::pair<int, int> > mapping;
     // std::cout<<c1<<" "<<c2<<std::endl;
-    while(c1<pMan->oPartition1.size() && c2<pMan->oPartition2.size()){
+    while((c1<pMan->oPartition1.size()) && (c2<pMan->oPartition2.size())){
         if((pMan->oPartition1[c1].size() > 1) || (pMan->oPartition2[c2].size() > 1)) {
             std::cout<<"par1 size:"<<pMan->oPartition1[c1].size()<<" par2 size:"<<pMan->oPartition2[c2].size()<<std::endl;
             mapping.clear();
             return mapping;
         }
-
         if(pMan->oPartition1[c1].size() == 0 ){
             c1++;
         }
-
-        if(pMan->oPartition2[c2].size() == 0 ){
+        else if(pMan->oPartition2[c2].size() == 0 ){
             c2++;
         }
-        
-        if((pMan->oPartition1[c1].size() == 1) && (pMan->oPartition2[c2].size() == 1)){
+        else if((pMan->oPartition1[c1].size() == 1) && (pMan->oPartition2[c2].size() == 1)){
             // std::cout<<pMan->oPartition1[c1][0]<<" "<<pMan->oPartition2[c2][0]<<std::endl;
             mapping.emplace_back(std::make_pair(pMan->oPartition1[c1][0], pMan->oPartition2[c2][0]));
             c1++;
@@ -376,11 +375,18 @@ void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m){
         auto &MoBack=MO.back();
         if(LearnedLevel.size() == 0) LearnedLevel.emplace_back(MoBack.size());
         else LearnedLevel.back() += MoBack.size();
-
+        // LearnedAssumption.emplace_back(Bmatch_toLitCond(MoBack[0], 1));
         for(auto &match:MoBack){
-            // std::cout<<Bmatch_toLitCond(match, 1)<<std::endl;
-            LearnedAssumption.emplace_back(Bmatch_toLitCond(match, 1));
+                // std::cout<<"check"<<Bmatch_toLitCond(match, 1)<<std::endl;
+                LearnedAssumption.emplace_back(Bmatch_toLitCond(match, 1));
         }
+        // if(MoBack.size() == 1) LearnedAssumption.emplace_back(Bmatch_toLitCond(MoBack[0], 1));
+        // else{
+        //     for(auto &match:MoBack){
+        //         // std::cout<<Bmatch_toLitCond(match, 1)<<std::endl;
+        //         LearnedAssumption.emplace_back(Bmatch_toLitCond(match, 1));
+        //     }
+        // }
         MO.pop_back();
 
     }
