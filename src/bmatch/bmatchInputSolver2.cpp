@@ -443,7 +443,7 @@ Abc_Ntk_t *Bmatch_NtkQbfCounterMiter(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_N
         return NULL;
     }
 
-    Io_Write(pNtkMiter, "miter.v", IO_FILE_VERILOG);
+    // Io_Write(pNtkMiter, "miter.v", IO_FILE_VERILOG);
 
     return pNtkMiter;
 }

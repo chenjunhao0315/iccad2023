@@ -59,9 +59,9 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     printf("Done!\n");
 
     // bdd construct
-    printf("Calculate Bdd\n");
+    // printf("Calculate Bdd...\n");
     // Bmatch_BddConstruct(pMan, pNtk1, pNtk2, 1);
-
+    // printf("Done!\n");
 
     // calculate unateness
     printf("Calculate Unateness Informatin...");
@@ -97,8 +97,6 @@ void Bmatch_Preprocess(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, i
     Bmatch_CalProb(pMan->prob1, pNtk1);
     Bmatch_CalProb(pMan->prob2, pNtk2);
     printf("Done!\n");
-
-    // exit(-1);
 
     // Sensitivity or others
 }
