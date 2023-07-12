@@ -128,6 +128,7 @@ public:
     int controlOffset;
     CaDiCaL::Solver *pMiterSolverNew;
 
+    //output solver1
     //learned clause level
     std::vector<int> LearnedLevel;
     std::vector<int> LearnedAssumption;
@@ -243,6 +244,15 @@ extern Abc_Obj_t *Bmatch_NtkCreateAnd(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> 
 extern Abc_Obj_t *Bmatch_NtkCreateParallelCase(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal);
 extern Abc_Obj_t *Bmatch_NtkCreateMultiplexer(Abc_Aig_t *pMan, std::vector<Abc_Obj_t *> &pControl, std::vector<Abc_Obj_t *> &pSignal, int dontApplyNot);
 extern void Bmatch_NtkBuildWithCone(Abc_Ntk_t *pNtk, Abc_Ntk_t *pNtkNew, std::vector<int> &outs);
+
+//bmatchOutputSolver1.cpp
+extern void Bmatch_OutputLearn(Bmatch_Man_t *pMan, bool status, int n, int m);
+extern bool Bmatch_OutputBacktrack(Bmatch_Man_t *pMan, int n, int m, int verbose);
+extern void Bmatch_New_Or(Bmatch_Man_t *pMan, int n, int m, int verbose);
+extern int Bmatch_PruneOutputSolverByUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern void Bmatch_InitOutputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+extern vMatch Bmatch_SolveOutput(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int *bLits, int *eLits, int fVerbose);
+
 
 // bmatchSetup.cpp
 extern void Bmatch_NtkSetup(Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int option);

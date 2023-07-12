@@ -1,6 +1,5 @@
 #include "bmatch.hpp"
 #include <map>
-#include <algorithm>
 ABC_NAMESPACE_IMPL_START
 
 #ifdef __cplusplus
