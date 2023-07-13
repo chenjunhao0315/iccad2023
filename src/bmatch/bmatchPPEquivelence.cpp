@@ -12,7 +12,7 @@ extern "C"
     void Bmatch_DegreePrune(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
     void Bmatch_MintermPrune(Bmatch_Man_t *pMan, std::map<int, std::vector<int>> PossibleListI, std::map<int, std::vector<int>> PossibleListO, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
     void Bmatch_SignPrune(Bmatch_Man_t *pMan, std::map<int, std::vector<int>> PossibleListI, std::map<int, std::vector<int>> PossibleListO, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
-
+    void Bmatch_MintermWCofactor(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose);
 #ifdef __cplusplus
 }
 #endif
@@ -24,6 +24,7 @@ void Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2)
 
     std::map<int, std::vector<int>> PossibleListI, PossibleListO;
     Bmatch_PPBusPrune(pMan, PossibleListI, PossibleListO, pNtk1, pNtk2);
+    Bmatch_PrintPartition(pMan, pNtk1, pNtk2);
     // Bmatch_MintermPrune(pMan, PossibleListI, PossibleListO, pNtk1, pNtk2);
     // Bmatch_SignPrune(pMan, PossibleListI, PossibleListO, pNtk1, pNtk2);
     // vMatch test;
@@ -230,4 +231,16 @@ void Bmatch_MintermPrune(Bmatch_Man_t *pMan, std::map<int, std::vector<int>> Pos
     //     }
     //     std::cout<<"}"<<std::endl;
     // }
+}
+
+//case3 test
+void Bmatch_MintermWCofactor(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose){
+    DdManager *bdd1 = pMan->bdd1;
+    DdManager *bdd2 = pMan->bdd2;
+
+//     Abc_NtkForEachPo(pNtk1, pObj, i)
+//     {
+//         if()
+//         double count = Cudd_CountMinterm(bdd1, (DdNode *)Abc_ObjGlobalBdd(pObj), Abc_NtkPiNum(pNtk1));
+//     }
 }

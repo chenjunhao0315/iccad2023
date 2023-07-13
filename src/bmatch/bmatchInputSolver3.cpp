@@ -280,9 +280,9 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     int target = 0;
     for (auto &fi : MO)
-        target += fi.size();
+        target += fi.size() > 0;
 
-    int index = Abc_NtkPoNum(pNtk1) - target, result = -1;
+    int index = Abc_NtkPoNum(pNtk1) - target, result = -1, timeout = 0;
 
     while (index < Abc_NtkPoNum(pNtk1)) {
         Abc_Obj_t *pOut = Abc_NtkPo(pNtkMiter, index);
@@ -297,9 +297,9 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Bmatch_Qbf_Man_t *pQbfMan = Bmatch_Gia_QbfAlloc(pGia, nPars, 0);
 
         abctime clkStart = Abc_Clock();
-        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 100, 0, 0);
+        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 300, 0, 1);
         // int result = Gia_QbfSolveValue(pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
-        ABC_PRT( "Time:", Abc_Clock() - clkStart );
+        // ABC_PRT( "Time:", Abc_Clock() - clkStart );
 
         assert(nPars == Vec_IntSize(vPiValues));
         Bmatch_Gia_QbfFree(pQbfMan);
@@ -310,13 +310,13 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
             index++;
             continue;
         } else {
+            timeout = result == -1;
             break;
         }
     }
 
-    if (Abc_NtkPoNum(pNtk1) - index != target) {
-        printf("Target: %d MaxScore: %d\n", target,Abc_NtkPoNum(pNtk1) - index);
-        return {0, MI};
+    if (timeout) {
+        return {2, MI};
     }
 
     int nControl = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1))));
@@ -334,66 +334,70 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
 
     MO.clear();
     MO = vMatch(Abc_NtkPoNum(pNtk1), std::vector<Literal>());
-    for (int i = 0; i < Abc_NtkPoNum(pNtk1); i++) {
-        for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk2); j += 2) {
-            if (Vec_IntEntry(vPiValues, nControlPI + i*Abc_NtkPoNum(pNtk2)*2 + j) == 1) {
-                MO[i].push_back(Literal(j / 2, false));
-            } else if (Vec_IntEntry(vPiValues, nControlPI + i*Abc_NtkPoNum(pNtk2)*2 + j + 1) == 1) {
-                MO[i].push_back(Literal(j / 2, true));
+    for (int i = 0; i < Abc_NtkPoNum(pNtk2); i++) {
+        for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk1); j += 2) {
+            if (Vec_IntEntry(vPiValues, nControlPI + i * Abc_NtkPoNum(pNtk1) * 2 + j + 0) == 1) {
+                MO[j / 2].push_back(Literal(i, false));
+            } else if (Vec_IntEntry(vPiValues, nControlPI + i * Abc_NtkPoNum(pNtk1) * 2 + j + 1) == 1) {
+                MO[j / 2].push_back(Literal(i, true));
             }
         }
+    }
+
+    if (Abc_NtkPoNum(pNtk1) - index != target) {
+        printf("Target: %d MaxScore: %d\n", target, Abc_NtkPoNum(pNtk1) - index);
+        return {0, MI};
     }
 
     return {1, MI};
 }
 
 Abc_Ntk_t *Bmatch_NtkQbfMiter3(Bmatch_Man_t *pManBmatch, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO) {
-    char Buffer[1000];
-    Abc_Ntk_t *pNtkMiter = Abc_NtkAlloc( ABC_NTK_STRASH, ABC_FUNC_AIG, 1 );
+char Buffer[1000];
+    Abc_Ntk_t *pNtkMiter = Abc_NtkAlloc(ABC_NTK_STRASH, ABC_FUNC_AIG, 1);
+    Abc_Obj_t *pObj, *pObjNew, *pObjTemp;
+    int i, j, k;
+
+    // miter name
     sprintf(Buffer, "%s_%s_miter", pNtk1->pName, pNtk2->pName);
-    pNtkMiter->pName = Extra_UtilStrsav(Buffer);
-    Abc_Aig_t *pMan = (Abc_Aig_t *)pNtkMiter->pManFunc;
-    auto &MapReduceMI = pManBmatch->MapReduceMI;
-    MapReduceMI = Mat(Abc_NtkPiNum(pNtk2), std::vector<int>());
+    Abc_NtkSetName(pNtkMiter, Extra_UtilStrsav(Buffer));
 
-    int i;
-    int nControlPI = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1))));
-    Abc_Obj_t *pObj, *pObjNew;
-
-    // Const assign
+    // assign const
     Abc_AigConst1(pNtk1)->pCopy = Abc_AigConst1(pNtkMiter);
     Abc_AigConst1(pNtk2)->pCopy = Abc_AigConst1(pNtkMiter);
 
-    // control PI
-    std::vector<std::vector<Abc_Obj_t *> > controlPIs;
+    // input mapping control signal
+    int nControlPi = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1)))); // normal matrix
+    std::vector<std::vector<Abc_Obj_t *> > controlPis;
     for (int i = 0; i < Abc_NtkPiNum(pNtk2); ++i) {
-        std::vector<Abc_Obj_t *> controlPI;
-        for (int j = 0; j < nControlPI; ++j) {
-            pObjNew = Abc_NtkCreatePi(pNtkMiter);
-            sprintf(Buffer, "control_pi_%d_%d", i, j);
-            Abc_ObjAssignName(pObjNew, Buffer, NULL);
-            controlPI.push_back(pObjNew);
+        std::vector<Abc_Obj_t *> controlPi;
+        for (int j = 0; j < nControlPi; ++j) {
+            pObj = Abc_NtkCreatePi(pNtkMiter);
+            sprintf(Buffer, "i:%s_control_%d", Abc_ObjName(Abc_NtkPi(pNtk2, i)), j);
+            Abc_ObjAssignName(pObj, Buffer, NULL);
+            controlPi.emplace_back(std::move(pObj));
         }
-        controlPIs.push_back(controlPI);
+        controlPis.emplace_back(std::move(controlPi));
     }
-    assert(Abc_NtkPiNum(pNtk2) == controlPIs.size());
+    assert(controlPis.size() == Abc_NtkPiNum(pNtk2));
 
-    // control PO
+    // output mapping control signal
     std::vector<std::vector<Abc_Obj_t *> > controlPOs;
-    for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i) {
+    for (int i = 0; i < Abc_NtkPoNum(pNtk2); ++i) {
         std::vector<Abc_Obj_t *> controlPO;
-        for (int j = 0; j < Abc_NtkPoNum(pNtk2); ++j) {
+        for (int j = 0; j < Abc_NtkPoNum(pNtk1); ++j) {
             pObjNew = Abc_NtkCreatePi(pNtkMiter);
-            sprintf(Buffer, "control_po_%d_%d", i, j);
+            sprintf(Buffer, "o:%s->%s", Abc_ObjName(Abc_NtkPo(pNtk2, i)), Abc_ObjName(Abc_NtkPo(pNtk1, j)));
             Abc_ObjAssignName(pObjNew, Buffer, NULL);
             controlPO.push_back(pObjNew);
             pObjNew = Abc_NtkCreatePi(pNtkMiter);
-            sprintf(Buffer, "control_po_%d_%d_inv", i, j);
+            sprintf(Buffer, "o:~%s->%s", Abc_ObjName(Abc_NtkPo(pNtk2, i)), Abc_ObjName(Abc_NtkPo(pNtk1, j)));
             Abc_ObjAssignName(pObjNew, Buffer, NULL);
             controlPO.push_back(pObjNew);
         }
         controlPOs.push_back(controlPO);
     }
+    assert(controlPOs.size() == Abc_NtkPoNum(pNtk2));
 
     // Ntk1 Input
     std::vector<Abc_Obj_t *> Ntk1Pis;
@@ -408,16 +412,18 @@ Abc_Ntk_t *Bmatch_NtkQbfMiter3(Bmatch_Man_t *pManBmatch, Abc_Ntk_t *pNtk1, Abc_N
     Ntk1Pis.push_back(Abc_ObjNot(Abc_AigConst1(pNtkMiter)));
 
     // Ntk2 Input
+    auto &MapReduceMI = pManBmatch->MapReduceMI;
+    MapReduceMI = Mat(Abc_NtkPiNum(pNtk2), std::vector<int>());
     Abc_NtkForEachPi(pNtk2, pObj, i) {
-        auto &controlPI = controlPIs[i];
-        std::vector<Abc_Obj_t *> reducePI;
+        auto &controlPi = controlPis[i];
+        std::vector<Abc_Obj_t *> reducePi;
         for (int j = 0; j < 2 * (Abc_NtkPiNum(pNtk1) + 1); ++j) {
             if (possibleMI[i][j]) {
                 MapReduceMI[i].push_back(j);
-                reducePI.push_back(Ntk1Pis[j]);
+                reducePi.push_back(Ntk1Pis[j]);
             }
         }
-        pObj->pCopy = Bmatch_NtkCreateMultiplexer3(pMan, controlPI, reducePI);;
+        pObj->pCopy = Bmatch_NtkCreateMultiplexer3((Abc_Aig_t *)pNtkMiter->pManFunc, controlPi, reducePi);
     }
 
     // Ntk1 Output
@@ -435,52 +441,89 @@ Abc_Ntk_t *Bmatch_NtkQbfMiter3(Bmatch_Man_t *pManBmatch, Abc_Ntk_t *pNtk1, Abc_N
     }
     assert(Abc_NtkPoNum(pNtkMiter) == Abc_NtkPoNum(pNtk1) + Abc_NtkPoNum(pNtk2));
 
-    // construct the network
-    Bmatch_NtkMiterAddOne(pNtk1, pNtkMiter);
-    Bmatch_NtkMiterAddOne(pNtk2, pNtkMiter);
-
-    // equivalence checking
-    std::vector<Abc_Obj_t *> ANDs(1, Abc_AigConst1(pNtkMiter));
-    for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i)  {
-        for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk2); ++j) {
-            Abc_Obj_t * Ntk1_PO = Abc_ObjChild0Copy( Abc_NtkPo(pNtk1, i)   );
-            Abc_Obj_t * Ntk2_PO = Abc_ObjChild0Copy( Abc_NtkPo(pNtk2, j / 2) );
-            Abc_Obj_t * control = controlPOs[i][j];
-            
-            if (possibleMO[i][j] == 0) {
-                pObjNew = Abc_AigXor( pMan, control, Abc_AigConst1(pNtkMiter));
-            } else {
-                pObjNew = Bmatch_NtkCreateConditionalEqual(pMan, control, Ntk1_PO, (j & 1) ? Abc_ObjNot(Ntk2_PO) : Ntk2_PO);
+    // Collect PO usage and build the network
+    std::set<int> Ntk1PoUsed;
+    std::set<int> Ntk2PoUsed;
+    for (int i = 0; i < Abc_NtkPoNum(pNtk2); ++i) {
+        for (int j = 0; j < Abc_NtkPoNum(pNtk1); ++j) {
+            if (possibleMO[i][2 * j + 0] || possibleMO[i][2 * j + 1]) {
+                Ntk1PoUsed.insert(j);
+                Ntk2PoUsed.insert(i);
             }
-            ANDs.push_back(pObjNew);
         }
     }
-    Abc_Obj_t *pUni = Bmatch_NtkCreateAnd(pMan, ANDs);
+    std::vector<int> Ntk1PoUsedVec(Ntk1PoUsed.begin(), Ntk1PoUsed.end());
+    std::vector<int> Ntk2PoUsedVec(Ntk2PoUsed.begin(), Ntk2PoUsed.end());
+    Bmatch_NtkBuildWithCone(pNtk1, pNtkMiter, Ntk1PoUsedVec);
+    Bmatch_NtkBuildWithCone(pNtk2, pNtkMiter, Ntk2PoUsedVec);
 
-    // ensure at least one output matching be used
-    std::vector<Abc_Obj_t *> POs_1;
-    for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i) {
-        std::vector<Abc_Obj_t *> ORs;
-        for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk2); ++j) {
-            if (possibleMO[i][j] == 0) continue;
+    // checking circuit
+    std::vector<Abc_Obj_t *> Checks(1, Abc_AigConst1(pNtkMiter));
+    for (int gi = 0; gi < Abc_NtkPoNum(pNtk2); ++gi) {
+        for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); ++fi) {
+            Abc_Obj_t *pControlPos = controlPOs[gi][2 * fi + 0];
+            Abc_Obj_t *pControlNeg = controlPOs[gi][2 * fi + 1];
+            if (possibleMO[gi][2 * fi + 0] == 0)  {
+                // ensure close
+                Abc_Obj_t *pControlCheckPos = Abc_AigXor((Abc_Aig_t *)pNtkMiter->pManFunc, pControlPos, Abc_AigConst1(pNtkMiter));
 
-            ORs.push_back(controlPOs[i][j]);
+                Checks.push_back(pControlCheckPos);
+            } else {
+                // checking circuit
+                Abc_Obj_t *pPO_Ntk1 = Abc_ObjChild0Copy(Abc_NtkPo(pNtk1, fi));
+                Abc_Obj_t *pPO_Ntk2 = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, gi));
+
+                Abc_Obj_t *pCheckPos = Abc_ObjNot(Abc_AigXor((Abc_Aig_t *)pNtkMiter->pManFunc, pPO_Ntk1, pPO_Ntk2));
+                Abc_Obj_t *pControlCheckPos = Abc_AigOr((Abc_Aig_t *)pNtkMiter->pManFunc, Abc_ObjNot(pControlPos), pCheckPos);
+
+                Checks.push_back(pControlCheckPos);
+            }
+            if (possibleMO[gi][2 * fi + 1] == 0)  {
+                // ensure close
+                Abc_Obj_t *pControlCheckNeg = Abc_AigXor((Abc_Aig_t *)pNtkMiter->pManFunc, pControlNeg, Abc_AigConst1(pNtkMiter));
+
+                Checks.push_back(pControlCheckNeg);
+            } else {
+                // checking circuit
+                Abc_Obj_t *pPO_Ntk1 = Abc_ObjChild0Copy(Abc_NtkPo(pNtk1, fi));
+                Abc_Obj_t *pPO_Ntk2 = Abc_ObjChild0Copy(Abc_NtkPo(pNtk2, gi));
+
+                Abc_Obj_t *pCheckNeg = Abc_ObjNot(Abc_AigXor((Abc_Aig_t *)pNtkMiter->pManFunc, pPO_Ntk1, Abc_ObjNot(pPO_Ntk2)));
+                Abc_Obj_t *pControlCheckNeg = Abc_AigOr((Abc_Aig_t *)pNtkMiter->pManFunc, Abc_ObjNot(pControlNeg), pCheckNeg);
+
+                Checks.push_back(pControlCheckNeg);
+            }
         }
-        Abc_Obj_t *pEnsure = (ORs.empty()) ? Abc_ObjNot(Abc_AigConst1(pNtkMiter)) : Bmatch_NtkCreateOr(pMan, ORs);
-        POs_1.push_back(Abc_AigAnd(pMan, pEnsure, pUni));
+    }
+    Abc_Obj_t *pEC = Bmatch_NtkCreateAnd((Abc_Aig_t *)pNtkMiter->pManFunc, Checks);
+
+    std::vector<Abc_Obj_t *> POs_1;
+    for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); ++fi) {
+        std::vector<Abc_Obj_t *> ORs = {Abc_ObjNot(Abc_AigConst1(pNtkMiter))};
+        for (int gi = 0; gi < Abc_NtkPoNum(pNtk2); ++gi) {
+            if (possibleMO[gi][2 * fi + 0]) {
+                ORs.push_back(controlPOs[gi][2 * fi + 0]);
+            }
+            if (possibleMO[gi][2 * fi + 1]) {
+                ORs.push_back(controlPOs[gi][2 * fi + 1]);
+            }
+        }
+        POs_1.push_back(Abc_AigAnd((Abc_Aig_t *)pNtkMiter->pManFunc, pEC, Bmatch_NtkCreateOr((Abc_Aig_t *)pNtkMiter->pManFunc, ORs)));
     }
     std::vector<Abc_Obj_t *> POs_2;
-    for (int j = 0; j < 2 * Abc_NtkPoNum(pNtk2); j += 2) {
-        std::vector<Abc_Obj_t *> ORs;
-        for (int i = 0; i < Abc_NtkPoNum(pNtk1); ++i) {
-            if (possibleMI[i][j])
-                ORs.push_back(controlPOs[i][j + 0]);
-            if (possibleMI[i][j + 1])
-                ORs.push_back(controlPOs[i][j + 1]);
+    for (int gi = 0; gi < Abc_NtkPoNum(pNtk2); ++gi) {
+        std::vector<Abc_Obj_t *> ORs = {Abc_ObjNot(Abc_AigConst1(pNtkMiter))};
+        for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); ++fi) {
+            if (possibleMO[gi][2 * fi + 0]) {
+                ORs.push_back(controlPOs[gi][2 * fi + 0]);
+            }
+            if (possibleMO[gi][2 * fi + 1]) {
+                ORs.push_back(controlPOs[gi][2 * fi + 1]);
+            }
         }
-        Abc_Obj_t *pEnsure = (ORs.empty()) ? Abc_ObjNot(Abc_AigConst1(pNtkMiter)) : Bmatch_NtkCreateOr(pMan, ORs);
-        POs_2.push_back(Abc_AigAnd(pMan, pEnsure, pUni));
+        POs_2.push_back(Abc_AigAnd((Abc_Aig_t *)pNtkMiter->pManFunc, pEC, Bmatch_NtkCreateOr((Abc_Aig_t *)pNtkMiter->pManFunc, ORs)));
     }
+
     std::vector<Abc_Obj_t *> pOut_1, pOut_2;
     Bmatch_NtkCreateSortingCircuit(pNtkMiter, POs_1, pOut_1);
     Bmatch_NtkCreateSortingCircuit(pNtkMiter, POs_2, pOut_2);
@@ -519,7 +562,7 @@ void Bmatch_FillPossibleMIByStrSupp(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
 
             for (auto &n : cond2) {
                 for (auto &m : cond1) {
-                    possibleMI[n][m * 2] = 1;
+                    possibleMI[n][m * 2 + 0] = 1;
                     possibleMI[n][m * 2 + 1] = 1;
                 }
             }
@@ -573,9 +616,9 @@ Mat Bmatch_CalculatePossibleMI(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *
 Mat Bmatch_CalculatePossibleMO(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
     Mat possibleMO(Abc_NtkPoNum(pNtk2), std::vector<int>(2 * (Abc_NtkPoNum(pNtk1)), 0));
 
-    for (int gi = 0; gi < Abc_NtkPoNum(pNtk2); ++gi) {
-        for (auto fi : MO[gi]) {
-            possibleMO[gi][fi.var() * 2 + fi.sign()] = 1;
+    for (int fi = 0; fi < Abc_NtkPoNum(pNtk1); ++fi) {
+        for (auto gi : MO[fi]) {
+            possibleMO[gi.var()][2 * fi + gi.sign()] = 1;
             // possibleMO[gi][fi.var() * 2 + 1] = 1;
         }
     }

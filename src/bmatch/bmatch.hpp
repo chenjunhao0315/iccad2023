@@ -52,8 +52,41 @@ struct Literal {
     operator int()       const { return Var; }
 };
 
+
 typedef std::vector<std::vector<Literal> > vMatch;
-typedef std::vector<std::vector<int>>  vMatch_Group;
+typedef std::vector<std::vector<int> >  vMatch_Group;
+typedef std::vector<std::pair<int, Literal> > MatchList;
+
+struct MatchNode {
+    Literal gPort;
+    int fPort;
+    std::vector<MatchNode> Child;
+    bool Visited = false;
+
+    MatchNode() : fPort(-1), gPort(Literal()){};
+    MatchNode(int fport, Literal gport) : fPort(fport), gPort(gport) {};
+    void ResetVisited() {Visited = false;}
+    void SetVisited() {Visited = true;}
+};
+class MatchTree {
+    public:
+    MatchNode Root;
+    
+    MatchTree():Root(MatchNode()) {};
+
+    void TreeConstruct(std::pair<std::vector<int>, std::vector<int> > Group, MatchNode *Node, int Level, int fVerbose);
+    void ResetTree();
+    void FindNewMatchRecur(MatchNode *Node, MatchList *Result);
+    void TreePrint();
+
+    private:
+    void ResetTreeRecur(MatchNode *Node);
+    void TreePrintRecur(MatchNode *Node);
+    
+    
+};
+
+typedef std::vector<MatchTree > PossList; //[[port in Group1 possible pair][...]...]
 
 struct Prob {
     float data;
@@ -136,6 +169,10 @@ public:
     bool AllowProjection;
     std::vector<int> ClauseControl;
     vMatch_Group MO;
+
+    //output solver 2
+    PossList PossibleOutput;
+    int CurrentTree;
 
     AutoBuffer<Prob> prob1;
     AutoBuffer<Prob> prob2;
@@ -274,6 +311,11 @@ extern void Bmatch_PrintPartition(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_
 
 //bmatchPPEquivelence.cpp
 extern void Bmatch_PPCheck(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
+
+//bmatchOutputSolver2.cpp
+extern vMatch Bmatch_SolveOutput2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose);
+extern void Bmatch_PossibleOutputCalculate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int fVerbose);
+extern void Bmatch_OutputLearn2(Bmatch_Man_t *pMan, bool status, int fVerbose);
 
 #ifdef __cplusplus
 }
