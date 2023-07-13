@@ -162,7 +162,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
 
         //input solve
         if (inputSolverMode == QBF_FINDMAX) {
-            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO);
+            auto Mapping = Bmatch_SolveQbfInputSolver3(pMan, pNtk1, pNtk2, MO, 300);
             result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             if(counter*2 == idealMax && Mapping.status == 2) result.status = NON_EQUIVALENT; 
             MI = Mapping.MI;
@@ -170,7 +170,7 @@ void Bmatch_SolveNP3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, int
             Bmatch_InitQbfInputSolver(pMan, pNtk1, pNtk2);
             Bmatch_FillPossibleMIbyStrSupp(pMan, pNtk1, pNtk2, MO);
             Bmatch_ReducePossibleMIbyUnate(pMan, pNtk1, pNtk2, MO);
-            auto Mapping = Bmatch_SolveQbfInputSolver(pMan, pNtk1, pNtk2, MO);
+            auto Mapping = Bmatch_SolveQbfInputSolver(pMan, pNtk1, pNtk2, MO, 300);
             result.status = (Mapping.status == 0) ? NON_EQUIVALENT : EQUIVALENT;
             MI = Mapping.MI;
         } else if (inputSolverMode == TWO_STEP) {

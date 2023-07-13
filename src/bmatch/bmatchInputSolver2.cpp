@@ -37,7 +37,7 @@ void Bmatch_FillPossibleMIbyStrSupp(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
 void Bmatch_ReducePossibleMIbyUnate(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_ReducePossibleMIbySymmetry(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 void Bmatch_ReducePossibleMIbyBussssss(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
-InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int timeout);
 
 int Bmatch_ExhaustingMatching(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MI, vMatch &MO);
 void Bmatch_CalculatePossibleMIMOStrict(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
@@ -567,12 +567,12 @@ Abc_Ntk_t *Bmatch_NtkQbfMiterReduced(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_N
 
     // printf("Miter Node: %d -> ", Abc_NtkNodeNum(pNtkMiter));
 
-    Io_Write(pNtkMiter, "miter_reduced.v", IO_FILE_VERILOG);
+    // Io_Write(pNtkMiter, "miter_reduced.v", IO_FILE_VERILOG);
 
     return pNtkMiter;
 }
 
-int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, std::vector<int> &forceYi2Xi, Vec_Int_t *vControl, vMatch &MO) {
+int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, std::vector<int> &forceYi2Xi, Vec_Int_t *vControl, vMatch &MO, int timeout) {
     int nControlPi = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1)))); // normal matrix
     int nPars = nControlPi * Abc_NtkPiNum(pNtk2);
 
@@ -612,7 +612,7 @@ int Bmatch_SolveQbfInputInt(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNt
         }
     }
 
-    int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vControl, nPars, 1024, 0, 100, 0, 0);
+    int result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vControl, nPars, 1024, 0, timeout, 0, 0);
     // int result = Gia_QbfSolveValue(pGia, vControl, nPars, 1024, 0, 100, 0, 1);
     Bmatch_Gia_QbfFree(pQbfMan);
 
@@ -704,7 +704,7 @@ void Bmatch_CnfReduce(std::vector<AutoBuffer<int> > &cnf) {
     }
 }
 
-InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int timeout) {
     vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
     int nControlPi = (int)(std::ceil(std::log2(2 * (Abc_NtkPiNum(pNtk1) + 1)))); // normal matrix
     int nPars = nControlPi * Abc_NtkPiNum(pNtk2);
@@ -723,7 +723,7 @@ InputMapping Bmatch_SolveQbfInputSolver(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Ab
             forceYi2Xi[i] = 2 * Abc_NtkPiNum(pNtk1);
     }
 
-    int RetValue = Bmatch_SolveQbfInputInt(pMan, pNtk1, pNtk2, forceYi2Xi, vControl, MO);
+    int RetValue = Bmatch_SolveQbfInputInt(pMan, pNtk1, pNtk2, forceYi2Xi, vControl, MO, timeout);
 
     if (RetValue == 1) { // Find Match
         std::replace(forceYi2Xi.begin(), forceYi2Xi.end(), -1, 2 * Abc_NtkPiNum(pNtk1));

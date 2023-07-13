@@ -60,3 +60,7 @@ tags
 
 /cmake
 /cscope
+
+*.v
+*.DS_Store
+result.txt

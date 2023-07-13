@@ -32,7 +32,7 @@ void Bmatch_NtkCreateSortingCircuit(Abc_Ntk_t *pNtkMiter, std::vector<Abc_Obj_t 
 Abc_Ntk_t *Bmatch_NtkQbfMiter3(Bmatch_Man_t *pManBmatch, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, Mat &possibleMI, Mat &possibleMO);
 Mat Bmatch_CalculatePossibleMI(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
 Mat Bmatch_CalculatePossibleMO(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
-InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO);
+InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int timeout);
 
 Mat Bmatch_CalculatePossibleMI2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
 Mat Bmatch_CalculatePossibleMO2(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2);
@@ -265,7 +265,7 @@ InputMapping Bmatch_SolveQbfInputSolver4(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
     return {1, MI};
 }
 
-InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO) {
+InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Ntk_t *pNtk2, vMatch &MO, int timeout) {
     vMatch MI(Abc_NtkPiNum(pNtk1) + 1, std::vector<Literal>());
     Mat possibleMO = Bmatch_CalculatePossibleMO(pMan, pNtk1, pNtk2, MO);
     Mat possibleMI = Bmatch_CalculatePossibleMI(pMan, pNtk1, pNtk2, MO);
@@ -282,7 +282,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
     for (auto &fi : MO)
         target += fi.size() > 0;
 
-    int index = Abc_NtkPoNum(pNtk1) - target, result = -1, timeout = 0;
+    int index = Abc_NtkPoNum(pNtk1) - target, result = -1, timeoutCheck = 0;
 
     while (index < Abc_NtkPoNum(pNtk1)) {
         Abc_Obj_t *pOut = Abc_NtkPo(pNtkMiter, index);
@@ -297,7 +297,7 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
         Bmatch_Qbf_Man_t *pQbfMan = Bmatch_Gia_QbfAlloc(pGia, nPars, 0);
 
         abctime clkStart = Abc_Clock();
-        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, 300, 0, 1);
+        result = Bmatch_Gia_QbfSolveValueInt(pQbfMan, pGia, vPiValues, nPars, 1024, 0, timeout, 0, 1);
         // int result = Gia_QbfSolveValue(pGia, vPiValues, nPars, 1024, 0, 100, 0, 1);
         // ABC_PRT( "Time:", Abc_Clock() - clkStart );
 
@@ -310,12 +310,12 @@ InputMapping Bmatch_SolveQbfInputSolver3(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, A
             index++;
             continue;
         } else {
-            timeout = result == -1;
+            timeoutCheck = result == -1;
             break;
         }
     }
 
-    if (timeout) {
+    if (timeoutCheck) {
         return {2, MI};
     }
 
@@ -569,8 +569,8 @@ void Bmatch_FillPossibleMIByStrSupp(Bmatch_Man_t *pMan, Abc_Ntk_t *pNtk1, Abc_Nt
         }
     }
     for (int n = 0; n < Abc_NtkPiNum(pNtk2); ++n) {
-        possibleMI[n][mi - 1] = 1;
-        possibleMI[n][mi - 2] = 1;
+        possibleMI[n][2 * Abc_NtkPiNum(pNtk1) + 0] = 1;
+        possibleMI[n][2 * Abc_NtkPiNum(pNtk1) + 1] = 1;
     }
 }
 
